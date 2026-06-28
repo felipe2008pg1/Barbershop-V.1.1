@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BarberShop</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 3l6 6 6-6"/>
+          <path d="M6 21l6-6 6 6"/>
+          <line x1="12" y1="9" x2="12" y2="15"/>
+        </svg>
+        <span data-i18n="brand_name">BarberShop</span>
+      </div>
+      <nav>
+        <button class="nav-btn active" data-tab="agendar" onclick="mostrarAba('agendar', event)">
+          <span data-i18n="nav_book">Agendar</span>
+        </button>
+        <button class="nav-btn" data-tab="meu-agendamento" onclick="mostrarAba('meu-agendamento', event)">
+          <span data-i18n="nav_my_appointment">Meu Agendamento</span>
+        </button>
+        <button class="theme-btn" onclick="toggleTheme()" title="Modo claro/escuro">
+          <span data-theme-icon></span>
+        </button>
+        <button class="lang-btn" onclick="toggleLang()" title="Mudar idioma / Change language">
+          <span data-i18n-toggle-label>EN</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+
+    <section id="aba-agendar" class="aba ativa">
+      <div class="card">
+        <span class="card-eyebrow" data-i18n="eyebrow_new">Novo agendamento</span>
+        <h2 data-i18n="new_appointment_title">Marque seu horário</h2>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="client_name" data-i18n="label_client_name">Nome do cliente</label>
+            <input type="text" id="client_name" data-i18n-placeholder="placeholder_client_name" />
+          </div>
+
+          <div class="form-group">
+            <label for="client_phone" data-i18n="label_phone">Telefone</label>
+            <input type="tel" id="client_phone" data-i18n-placeholder="placeholder_phone" />
+          </div>
+
+          <div class="form-group">
+            <label for="client_email" data-i18n="label_email">Email (opcional)</label>
+            <input type="email" id="client_email" data-i18n-placeholder="placeholder_email" />
+          </div>
+
+          <div class="form-group">
+            <label for="barber_id" data-i18n="label_barber">Barbeiro</label>
+            <select id="barber_id">
+              <option value="" data-i18n="placeholder_select_barber">Selecione um barbeiro</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="service_id" data-i18n="label_service">Serviço</label>
+            <select id="service_id">
+              <option value="" data-i18n="placeholder_select_service">Selecione um serviço</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="date" data-i18n="label_date">Data</label>
+            <input type="date" id="date" />
+          </div>
+
+          <div class="form-group">
+            <label for="time" data-i18n="label_time">Horário</label>
+            <select id="time">
+              <option value="" data-i18n="placeholder_select_date_first">Selecione barbeiro e data primeiro</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="msg-form" class="msg" style="display:none"></div>
+        <div id="confirmation-box" style="display:none; margin-bottom: 24px;"></div>
+
+        <button class="btn-primary" onclick="bookAppointment()" data-i18n="btn_confirm_booking">
+          Confirmar agendamento
+        </button>
+      </div>
+    </section>
+
+    <section id="aba-meu-agendamento" class="aba">
+      <div class="card card-narrow" id="lookup-form-card">
+        <span class="card-eyebrow" data-i18n="eyebrow_lookup">Consultar</span>
+        <h2 data-i18n="my_appointment_title">Meu Agendamento</h2>
+
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="lookup_phone" data-i18n="label_phone">Telefone</label>
+          <input type="tel" id="lookup_phone" data-i18n-placeholder="placeholder_phone" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="lookup_code" data-i18n="label_confirmation_code">Código de confirmação</label>
+          <input type="text" id="lookup_code" placeholder="Ex: A8F3" style="text-transform: uppercase;" />
+        </div>
+
+        <div id="msg-lookup" class="msg" style="display:none"></div>
+
+        <button class="btn-primary" onclick="lookupAppointment()" data-i18n="btn_find_appointment">
+          Buscar agendamento
+        </button>
+      </div>
+
+      <div class="card" id="lookup-result-card" style="display:none;">
+        <span class="card-eyebrow" data-i18n="eyebrow_found">Encontrado</span>
+        <h2 data-i18n="my_appointment_title">Meu Agendamento</h2>
+        <div id="lookup-result"></div>
+        <button class="btn-text" onclick="resetLookup()" data-i18n="btn_search_another" style="margin-top: 20px;">
+          Buscar outro agendamento
+        </button>
+      </div>
+    </section>
+
+  </main>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/i18n.js"></script>
+  <script src="/static/js/public.js"></script>
+</body>
+</html>
