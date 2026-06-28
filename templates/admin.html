@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BarberShop – Admin</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 3l6 6 6-6"/><path d="M6 21l6-6 6 6"/>
+          <line x1="12" y1="9" x2="12" y2="15"/>
+        </svg>
+        <span data-i18n="brand_name">BarberShop</span>
+        <span style="opacity:.5;font-size:13px;font-family:var(--font-body);margin-left:4px;">/ <span data-i18n="admin_title">Painel Administrativo</span></span>
+      </div>
+      <nav id="admin-nav" style="display:none">
+        <button class="nav-btn active" data-tab="dashboard" onclick="mostrarAbaAdmin('dashboard',event)"><span data-i18n="tab_dashboard">Relatórios</span></button>
+        <button class="nav-btn" data-tab="appointments-admin" onclick="mostrarAbaAdmin('appointments-admin',event)"><span data-i18n="tab_appointments_admin">Agendamentos</span></button>
+        <button class="nav-btn" data-tab="barbers" onclick="mostrarAbaAdmin('barbers',event)"><span data-i18n="tab_barbers">Barbeiros</span></button>
+        <button class="nav-btn" data-tab="services" onclick="mostrarAbaAdmin('services',event)"><span data-i18n="tab_services">Serviços</span></button>
+        <button class="theme-btn" onclick="toggleTheme()"><span data-theme-icon></span></button>
+        <button class="lang-btn" onclick="toggleLang()"><span data-i18n-toggle-label>EN</span></button>
+      </nav>
+      <div id="login-actions" style="display:flex;align-items:center;gap:8px;">
+        <button class="theme-btn" onclick="toggleTheme()"><span data-theme-icon></span></button>
+        <button class="lang-btn" onclick="toggleLang()"><span data-i18n-toggle-label>EN</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="tela-admin-login" class="aba ativa">
+      <div class="card card-narrow">
+        <span class="card-eyebrow" data-i18n="eyebrow_restricted_access">Acesso restrito</span>
+        <h2 data-i18n="admin_title">Painel Administrativo</h2>
+        <div class="form-group" style="margin-bottom:20px;">
+          <label for="admin-key" data-i18n="admin_login_label">Chave de acesso</label>
+          <input type="password" id="admin-key" />
+        </div>
+        <div id="msg-admin-login" class="msg" style="display:none"></div>
+        <button class="btn-primary" onclick="adminLogin()" data-i18n="btn_login" style="width:100%;">Entrar</button>
+      </div>
+    </section>
+
+    <section id="aba-dashboard" class="aba">
+      <div class="card">
+        <div class="agenda-header">
+          <div>
+            <span class="card-eyebrow" data-i18n="eyebrow_dashboard">Visão geral</span>
+            <h2 data-i18n="tab_dashboard">Relatórios</h2>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="date" id="dashboard-start" />
+            <span style="color:var(--ink-soft);font-size:13px;">—</span>
+            <input type="date" id="dashboard-end" />
+            <button class="btn-secondary" onclick="loadDashboard()" data-i18n="btn_apply_filter">Aplicar</button>
+          </div>
+        </div>
+        <div id="dashboard-today" style="margin-bottom:24px;"></div>
+        <div id="dashboard-content"><p class="vazio" data-i18n="dashboard_loading">Carregando...</p></div>
+        <div id="dashboard-clients" style="margin-top:32px;"></div>
+        <div id="dashboard-peak" style="margin-top:32px;"></div>
+      </div>
+    </section>
+
+    <section id="aba-appointments-admin" class="aba">
+      <div class="card">
+        <span class="card-eyebrow" data-i18n="tab_appointments_admin">Lista</span>
+        <h2 data-i18n="tab_appointments_admin">Agendamentos</h2>
+        <div class="form-grid" style="margin-bottom:20px;">
+          <div class="form-group">
+            <label data-i18n="label_filter_date">Data</label>
+            <input type="date" id="filter-appt-date" />
+          </div>
+          <div class="form-group">
+            <label data-i18n="label_filter_barber">Barbeiro</label>
+            <select id="filter-appt-barber"></select>
+          </div>
+          <div class="form-group">
+            <label data-i18n="label_filter_status">Status</label>
+            <select id="filter-appt-status">
+              <option value="" data-i18n="all_statuses">Todos os status</option>
+              <option value="scheduled" data-i18n="status_scheduled">Agendado</option>
+              <option value="completed" data-i18n="status_completed">Concluído</option>
+              <option value="cancelled" data-i18n="status_cancelled">Cancelado</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-secondary" onclick="loadAdminAppointments()" data-i18n="btn_apply_filter">Aplicar</button>
+        <div id="lista-appointments-admin" style="margin-top:24px;"></div>
+      </div>
+    </section>
+
+    <section id="aba-barbers" class="aba">
+      <div class="card">
+        <span class="card-eyebrow" data-i18n="tab_barbers">Equipe</span>
+        <h2 data-i18n="tab_barbers">Barbeiros</h2>
+        <div class="form-grid">
+          <div class="form-group"><label data-i18n="label_name">Nome</label><input type="text" id="new-barber-name" /></div>
+          <div class="form-group"><label data-i18n="label_email_login">Email</label><input type="email" id="new-barber-email" /></div>
+          <div class="form-group"><label data-i18n="label_phone">Telefone</label><input type="tel" id="new-barber-phone" /></div>
+          <div class="form-group"><label data-i18n="label_password">Senha</label><input type="password" id="new-barber-password" /></div>
+        </div>
+        <div id="msg-new-barber" class="msg" style="display:none"></div>
+        <button class="btn-primary" onclick="createBarber()" data-i18n="btn_add_barber">Adicionar barbeiro</button>
+        <hr class="divider" />
+        <div id="lista-barbers"></div>
+      </div>
+    </section>
+
+    <section id="aba-services" class="aba">
+      <div class="card">
+        <span class="card-eyebrow" data-i18n="tab_services">Catálogo</span>
+        <h2 data-i18n="tab_services">Serviços</h2>
+        <div class="form-grid">
+          <div class="form-group"><label data-i18n="label_name">Nome</label><input type="text" id="new-service-name" /></div>
+          <div class="form-group"><label data-i18n="label_price">Preço</label><input type="number" step="0.01" id="new-service-price" /></div>
+          <div class="form-group"><label data-i18n="label_duration">Duração (min)</label><input type="number" id="new-service-duration" value="30" /></div>
+        </div>
+        <div id="msg-new-service" class="msg" style="display:none"></div>
+        <button class="btn-primary" onclick="createService()" data-i18n="btn_add_service">Adicionar serviço</button>
+        <hr class="divider" />
+        <div id="lista-services"></div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/i18n.js"></script>
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>
