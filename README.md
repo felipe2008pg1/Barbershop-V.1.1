@@ -286,4 +286,4 @@ uvicorn main:app --reload
 
 ## 👨‍💻 Author
 <b>Felipe Gonzalez</b>
-Full Stack Python Developer
+| Full Stack Python Developer
