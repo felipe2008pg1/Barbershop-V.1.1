@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BarberShop – Barber Area</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 3l6 6 6-6"/>
+          <path d="M6 21l6-6 6 6"/>
+          <line x1="12" y1="9" x2="12" y2="15"/>
+        </svg>
+        <span data-i18n="brand_name">BarberShop</span>
+      </div>
+      <nav id="barber-nav" style="display:none">
+        <button class="nav-btn active" data-tab="appointments" onclick="mostrarAbaBarbeiro('appointments', event)">
+          <span data-i18n="tab_appointments">Agendamentos</span>
+        </button>
+        <button class="nav-btn" data-tab="my-schedule" onclick="mostrarAbaBarbeiro('my-schedule', event)">
+          <span data-i18n="tab_my_schedule">Meus Horários</span>
+        </button>
+        <button class="nav-btn" data-tab="time-off" onclick="mostrarAbaBarbeiro('time-off', event)">
+          <span data-i18n="tab_time_off">Folgas</span>
+        </button>
+        <button class="nav-btn" onclick="logout()">
+          <span data-i18n="btn_logout">Sair</span>
+        </button>
+        <button class="theme-btn" onclick="toggleTheme()" title="Modo claro/escuro">
+          <span data-theme-icon></span>
+        </button>
+        <button class="lang-btn" onclick="toggleLang()" title="Mudar idioma / Change language">
+          <span data-i18n-toggle-label>EN</span>
+        </button>
+      </nav>
+      <div id="login-actions" style="display:flex; align-items:center; gap:8px;">
+        <button class="theme-btn" onclick="toggleTheme()" title="Modo claro/escuro">
+          <span data-theme-icon></span>
+        </button>
+        <button class="lang-btn" id="lang-btn-login" onclick="toggleLang()" title="Mudar idioma / Change language">
+          <span data-i18n-toggle-label>EN</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Login screen -->
+    <section id="tela-login" class="aba ativa">
+      <div class="card card-narrow">
+        <span class="card-eyebrow" data-i18n="tab_appointments">Área do barbeiro</span>
+        <h2 data-i18n="barber_login_title">Login do Barbeiro</h2>
+
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="login-email" data-i18n="label_email_login">Email</label>
+          <input type="email" id="login-email" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="login-password" data-i18n="label_password">Senha</label>
+          <input type="password" id="login-password" />
+        </div>
+
+        <div id="msg-login" class="msg" style="display:none"></div>
+
+        <button class="btn-primary" onclick="login()" data-i18n="btn_login" style="width: 100%;">Entrar</button>
+      </div>
+    </section>
+
+    <!-- Dashboard: Appointments -->
+    <section id="aba-appointments" class="aba">
+      <div class="card">
+        <div class="agenda-header">
+          <div>
+            <span class="card-eyebrow" data-i18n="tab_appointments">Agendamentos</span>
+            <h2 data-i18n="barber_dashboard_title">Minha Agenda</h2>
+          </div>
+          <input type="date" id="filtro-data-barbeiro" onchange="loadMyAppointments()" />
+        </div>
+        <div id="lista-appointments-barbeiro">
+          <p class="vazio" data-i18n="agenda_empty">Selecione uma data para ver os agendamentos.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard: My Schedules -->
+    <section id="aba-my-schedule" class="aba">
+      <div class="card">
+        <span class="card-eyebrow" data-i18n="tab_my_schedule">Configuração</span>
+        <h2 data-i18n="tab_my_schedule">Meus Horários</h2>
+        <div id="grade-horarios"></div>
+        <button class="btn-primary" onclick="saveSchedule()" data-i18n="btn_save_schedule" style="margin-top: 24px;">
+          Salvar grade de horários
+        </button>
+      </div>
+    </section>
+
+    <!-- Panel: Time Off -->
+    <section id="aba-time-off" class="aba">
+      <div class="card">
+        <span class="card-eyebrow" data-i18n="tab_time_off">Bloqueios</span>
+        <h2 data-i18n="tab_time_off">Folgas</h2>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="timeoff-date" data-i18n="label_date">Data</label>
+            <input type="date" id="timeoff-date" />
+          </div>
+          <div class="form-group">
+            <label for="timeoff-start" data-i18n="label_start_time">Início</label>
+            <input type="time" id="timeoff-start" />
+          </div>
+          <div class="form-group">
+            <label for="timeoff-end" data-i18n="label_end_time">Fim</label>
+            <input type="time" id="timeoff-end" />
+          </div>
+          <div class="form-group">
+            <label for="timeoff-reason" data-i18n="label_reason">Motivo (opcional)</label>
+            <input type="text" id="timeoff-reason" />
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="addTimeOff()" data-i18n="btn_add_time_off">
+          Adicionar folga
+        </button>
+
+        <div id="lista-time-off" style="margin-top: 28px"></div>
+      </div>
+    </section>
+
+  </main>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/i18n.js"></script>
+  <script src="/static/js/barber.js"></script>
+</body>
+</html>
