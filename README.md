@@ -266,8 +266,8 @@ Barbershop-V.1.0/
 ## ⚡ Running Locally
 
 ```bash
-git clone https://github.com/your-repo.git
-cd project
+git clone https://github.com/felipe2008pg1/Barbershop-V.1.1
+cd Barbershop-V.1.0
 
 pip install -r requirements.txt
 uvicorn main:app --reload
