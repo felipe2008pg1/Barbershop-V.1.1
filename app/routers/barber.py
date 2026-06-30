@@ -20,6 +20,17 @@ from app.rate_limit import limiter
 from app.security.login_guard import login_guard
 from app.security.password_policy import validate_password
 from app.security.mfa import user_scoped_client
+from app.security.crypto import decrypt_field
+
+
+def _decrypt_barber_profile(profile: dict) -> dict:
+    out = dict(profile)
+    out["email"] = decrypt_field(profile.get("email_enc"))
+    out["phone"] = decrypt_field(profile.get("phone_enc")) if profile.get("phone_enc") else None
+    out.pop("email_enc", None)
+    out.pop("email_hash", None)
+    out.pop("phone_enc", None)
+    return out
 
 router = APIRouter(prefix="/api/barber", tags=["barber"])
 logger = logging.getLogger("barbershop.barber")
@@ -156,7 +167,7 @@ def login(request: Request, response: Response, credentials: BarberLogin):
         max_age=result.session.expires_in or 3600,
     )
     logger.info("Barber %s logged in from %s (no MFA enrolled)", credentials.email, client_ip)
-    return {"mfa_required": False, "barber": profile.data}
+    return {"mfa_required": False, "barber": _decrypt_barber_profile(profile.data)}
 
 
 @router.post("/mfa/login/challenge")
@@ -223,7 +234,7 @@ def mfa_login_verify(
     _clear_pending_cookie(response)
     _set_session_cookie(response, verify_result.access_token, max_age=verify_result.expires_in or 3600)
     logger.info("Barber %s completed MFA login from %s", verify_result.user.id, client_ip)
-    return {"barber": profile.data}
+    return {"barber": _decrypt_barber_profile(profile.data)}
 
 
 @router.post("/mfa/enroll")
