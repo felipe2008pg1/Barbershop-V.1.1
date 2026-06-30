@@ -69,7 +69,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 # ------------------------------------------------------------------
-# Middleware (ordem importa — último adicionado = mais externo)
+# Middleware (order matters — last added = outermost)
 # ------------------------------------------------------------------
 
 if CORS_ALLOWED_ORIGINS == ["*"] and is_production:
@@ -77,8 +77,8 @@ if CORS_ALLOWED_ORIGINS == ["*"] and is_production:
 
 register_cors(app)                                                    # 1. innermost
 app.add_middleware(SecurityMiddleware)                                # 2. WAF + rate limit + IP block
-app.add_middleware(CloudflareOriginMiddleware)                        # 3. bloqueia acesso direto ao Render
-app.add_middleware(HTTPSEnforcementMiddleware, enforce=is_production) # 4. valida X-Forwarded-Proto
+app.add_middleware(CloudflareOriginMiddleware)                        # 3. blocks direct access to the Render
+app.add_middleware(HTTPSEnforcementMiddleware, enforce=is_production) # 4. validates X-Forwarded-Proto
 app.add_middleware(RequestIDMiddleware)                               # 5. outermost
 
 
