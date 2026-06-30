@@ -15,9 +15,20 @@ from app.auth import require_admin
 from app.models import BarberCreate, BarberUpdate, ServiceCreate, ServiceUpdate
 from app.rate_limit import limiter
 from app.security.password_policy import validate_password
+from app.security.crypto import encrypt_field, blind_index, decrypt_field
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 logger = logging.getLogger("barbershop.admin")
+
+
+def _decrypt_barber(row: dict) -> dict:
+    out = dict(row)
+    out["email"] = decrypt_field(row.get("email_enc"))
+    out["phone"] = decrypt_field(row.get("phone_enc")) if row.get("phone_enc") else None
+    out.pop("email_enc", None)
+    out.pop("email_hash", None)
+    out.pop("phone_enc", None)
+    return out
 
 
 # ---------- Barbers ----------
@@ -27,7 +38,7 @@ def list_all_barbers():
     """Lists all barbers (active and inactive)."""
     try:
         result = supabase.table("barbers").select("*").order("name").execute()
-        return result.data or []
+        return [_decrypt_barber(row) for row in (result.data or [])]
     except Exception:
         logger.exception("Failed to list barbers")
         raise HTTPException(status_code=503, detail="Could not load barbers right now.")
@@ -45,11 +56,12 @@ def create_barber(request: Request, data: BarberCreate):
     # never creates a weak-password account even if the model changes.
     validate_password(data.password, data.email)
 
+    email_hash = blind_index(data.email)
     try:
         existing = (
             supabase.table("barbers")
             .select("id")
-            .eq("email", data.email)
+            .eq("email_hash", email_hash)
             .maybe_single()
             .execute()
         )
@@ -80,16 +92,17 @@ def create_barber(request: Request, data: BarberCreate):
     profile = {
         "id": barber_id,
         "name": data.name,
-        "email": data.email,
-        "phone": data.phone,
+        "email_enc": encrypt_field(data.email),
+        "email_hash": email_hash,
+        "phone_enc": encrypt_field(data.phone) if data.phone else None,
     }
 
     try:
         result = supabase.table("barbers").insert(profile).execute()
         if not result.data:
             raise HTTPException(status_code=400, detail="Could not create the barber profile.")
-        logger.info("Barber created: %s (%s)", data.name, data.email)
-        return result.data[0]
+        logger.info("Barber created: %s", data.name)
+        return _decrypt_barber(result.data[0])
     except HTTPException:
         raise
     except Exception:
@@ -104,9 +117,13 @@ def create_barber(request: Request, data: BarberCreate):
 @router.put("/barbers/{barber_id}")
 def update_barber(barber_id: str, data: BarberUpdate):
     """Edits barber data or activates/deactivates their access."""
-    payload = {k: v for k, v in data.model_dump(mode="json").items() if v is not None}
-    if not payload:
+    raw_payload = {k: v for k, v in data.model_dump(mode="json").items() if v is not None}
+    if not raw_payload:
         raise HTTPException(status_code=400, detail="No data to update.")
+
+    payload = dict(raw_payload)
+    if "phone" in payload:
+        payload["phone_enc"] = encrypt_field(payload.pop("phone"))
 
     try:
         result = supabase.table("barbers").update(payload).eq("id", barber_id).execute()
@@ -116,8 +133,8 @@ def update_barber(barber_id: str, data: BarberUpdate):
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Barber not found.")
-    logger.info("Barber %s updated: %s", barber_id, list(payload.keys()))
-    return result.data[0]
+    logger.info("Barber %s updated: %s", barber_id, list(raw_payload.keys()))
+    return _decrypt_barber(result.data[0])
 
 
 @router.delete("/barbers/{barber_id}", status_code=204)
@@ -341,7 +358,14 @@ def list_appointments(
             query = query.eq("status", status)
 
         result = query.execute()
-        return result.data or []
+        rows = result.data or []
+        for row in rows:
+            row["client_phone"] = decrypt_field(row.get("client_phone_enc"))
+            row["client_email"] = decrypt_field(row.get("client_email_enc")) if row.get("client_email_enc") else None
+            row.pop("client_phone_enc", None)
+            row.pop("client_phone_hash", None)
+            row.pop("client_email_enc", None)
+        return rows
     except Exception:
         logger.exception("Failed to list appointments")
         raise HTTPException(status_code=503, detail="Could not load appointments right now.")
@@ -414,7 +438,7 @@ def get_client_ranking(
     try:
         result = (
             supabase.table("appointments")
-            .select("client_name, client_phone, services(price)")
+            .select("client_name, client_phone_enc, client_phone_hash, services(price)")
             .eq("status", "completed")
             .gte("date", str(start_date))
             .lte("date", str(end_date))
@@ -428,21 +452,23 @@ def get_client_ranking(
     clients: dict[str, dict] = defaultdict(lambda: {"name": "", "visits": 0, "total_spent": 0.0})
 
     for appt in (result.data or []):
-        phone = appt["client_phone"]
+        phone_hash = appt["client_phone_hash"]
+        phone = decrypt_field(appt.get("client_phone_enc"))
         price = float((appt.get("services") or {}).get("price") or 0)
-        clients[phone]["name"] = appt["client_name"]
-        clients[phone]["visits"] += 1
-        clients[phone]["total_spent"] += price
+        clients[phone_hash]["name"] = appt["client_name"]
+        clients[phone_hash]["phone"] = phone
+        clients[phone_hash]["visits"] += 1
+        clients[phone_hash]["total_spent"] += price
 
     ranking = sorted(
         [
             {
-                "client_phone": phone,
+                "client_phone": data["phone"],
                 "client_name": data["name"],
                 "visits": data["visits"],
                 "total_spent": round(data["total_spent"], 2),
             }
-            for phone, data in clients.items()
+            for data in clients.values()
         ],
         key=lambda x: (x["visits"], x["total_spent"]),
         reverse=True,
