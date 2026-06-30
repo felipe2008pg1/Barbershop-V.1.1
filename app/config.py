@@ -1,25 +1,21 @@
 """
 Central application configuration.
-
 Loads environment variables once and exposes typed, validated settings
 plus the configured Supabase client used throughout the app.
 """
 import logging
 import os
-
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
 load_dotenv()
-
 logger = logging.getLogger("barbershop.config")
 
 # ---------- Supabase ----------
-
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")  # used to validate the barber's token
+JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 
 if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
     raise RuntimeError(
@@ -27,17 +23,15 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
     )
 
 # "Admin" client: uses the service role key, bypasses RLS.
-# This is the client used by the backend for all database operations.
+# NEVER expose this client to user-facing routes without explicit filters.
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-# ---------- Application / security settings ----------
+# ---------- Application / security ----------
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
-# Comma-separated list of origins allowed to call the API from a browser,
-# e.g. "https://mybarbershop.com,https://www.mybarbershop.com".
-# Defaults to "*" (any origin) for local development convenience, but
-# should be tightened to your real domain(s) in production.
+# Comma-separated origins allowed to call the API from a browser.
 _raw_cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*")
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _raw_cors_origins.split(",") if origin.strip()]
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _raw_cors_origins.split(",") if o.strip()]
 
 if CORS_ALLOWED_ORIGINS == ["*"]:
     logger.warning(
@@ -45,12 +39,16 @@ if CORS_ALLOWED_ORIGINS == ["*"]:
         "Set this to your real domain(s) before deploying to production."
     )
 
-# Toggle for verbose request/error logging. Defaults to "false" so
-# production logs stay clean; set to "true" locally while debugging.
+# Cloudflare origin protection
+# Set CLOUDFLARE_ORIGIN_SECRET to a random 32-char string (same value
+# configured in Cloudflare Transform Rules as X-Origin-Secret header).
+CLOUDFLARE_ORIGIN_SECRET = os.getenv("CLOUDFLARE_ORIGIN_SECRET", "")
+ENFORCE_CLOUDFLARE_ORIGIN = os.getenv("ENFORCE_CLOUDFLARE_ORIGIN", "false").lower() == "true"
+
+# Toggle for verbose request/error logging.
 DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "false").lower() in ("1", "true", "yes")
 
-# Rate limiting defaults (requests per time window). Can be overridden
-# per-environment without touching code.
+# ---------- Rate limiting ----------
 RATE_LIMIT_BOOKING = os.getenv("RATE_LIMIT_BOOKING", "5/minute")
 RATE_LIMIT_LOOKUP = os.getenv("RATE_LIMIT_LOOKUP", "10/minute")
 RATE_LIMIT_LOGIN = os.getenv("RATE_LIMIT_LOGIN", "10/minute")
