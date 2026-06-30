@@ -5,7 +5,6 @@ import logging
 import os
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -14,6 +13,14 @@ from app.config import CORS_ALLOWED_ORIGINS, DEBUG_LOGGING
 from app.logging_config import configure_logging
 from app.rate_limit import limiter
 from app.routers import admin, barber, public
+from app.config import CORS_ALLOWED_ORIGINS, DEBUG_LOGGING, ENVIRONMENT
+from app.middleware import (
+    SecurityMiddleware,
+    HTTPSEnforcementMiddleware,
+    CloudflareOriginMiddleware,
+    RequestIDMiddleware,
+    register_cors,
+)
 
 configure_logging(debug=DEBUG_LOGGING)
 logger = logging.getLogger("barbershop.main")
@@ -90,16 +97,27 @@ async def request_logging(request: Request, call_next):
 
 
 # CORS — Logs a warning if it is too open.
+# REMOVER esse bloco todo:
 if CORS_ALLOWED_ORIGINS == ["*"]:
     logger.warning("CORS is open to all origins (*). Restrict before deploying to production.")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ALLOWED_ORIGINS,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Admin-Key", "X-Lang"],
-    allow_credentials=False,
+    ...
 )
+
+# SUBSTITUIR POR:
+is_production = ENVIRONMENT == "production"
+
+if CORS_ALLOWED_ORIGINS == ["*"] and is_production:
+    logger.warning("CORS is open to all origins (*). Restrict before deploying to production.")
+
+register_cors(app)  # usa CORS_ALLOWED_ORIGINS internamente
+app.add_middleware(SecurityMiddleware)
+app.add_middleware(CloudflareOriginMiddleware)
+app.add_middleware(HTTPSEnforcementMiddleware, enforce=is_production)
+app.add_middleware(RequestIDMiddleware)
 
 # ------------------------------------------------------------------
 # Static files, templates, routers
