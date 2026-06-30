@@ -3,8 +3,11 @@ services:
     name: barbershop-api
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /health
     envVars:
+      - key: ENVIRONMENT
+        value: production
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
@@ -17,8 +20,12 @@ services:
         sync: false
       - key: CORS_ALLOWED_ORIGINS
         sync: false
+      - key: CLOUDFLARE_ORIGIN_SECRET
+        sync: false
+      - key: ENFORCE_CLOUDFLARE_ORIGIN
+        value: "false"   # mude para "true" após configurar Cloudflare
       - key: DEBUG_LOGGING
-        value: false
+        value: "false"
       - key: RATE_LIMIT_BOOKING
         value: 5/minute
       - key: RATE_LIMIT_LOOKUP
