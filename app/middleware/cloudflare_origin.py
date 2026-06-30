@@ -1,11 +1,11 @@
 """
-Bloqueia requisições que chegam diretamente ao Render, bypassando o Cloudflare.
+Blocks requests sent directly to Render, bypassing Cloudflare.
 
 Setup:
-1. Gere um secret: python -c "import secrets; print(secrets.token_hex(32))"
-2. Adicione no Render: CLOUDFLARE_ORIGIN_SECRET=<secret>
+1. Generate a secret: python -c "import secrets; print(secrets.token_hex(32))"
+2. Add to Render: CLOUDFLARE_ORIGIN_SECRET=<secret>
 3. Cloudflare → Rules → Transform Rules → Modify Request Header:
-   Header: X-Origin-Secret | Value: <mesmo secret>
+   Header: X-Origin-Secret | Value: <same secret>
 4. Render → ENFORCE_CLOUDFLARE_ORIGIN=true
 """
 
