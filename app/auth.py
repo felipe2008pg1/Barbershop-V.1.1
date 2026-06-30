@@ -95,6 +95,30 @@ def _decrypt_barber_profile(profile: dict) -> dict:
     return out
 
 
+def get_barber_db(request: Request):
+    """
+    Returns a Supabase client scoped to the calling barber's own JWT,
+    instead of the service-role client. Existing RLS policies
+    (auth.uid() = barber_id) then become the real enforcement layer
+    for ownership, not just an application-level filter.
+
+    Use this for any table read/write that should be limited to data
+    the barber owns (appointments, schedule, time off). Auth itself
+    (supabase.auth.*) and the barber's own profile lookup still use
+    the service-role client, since neither is gated by a
+    barber-ownership RLS policy.
+    """
+    from app.security.mfa import user_scoped_client
+
+    token = request.cookies.get(_COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authentication token.")
+    # Only the access token is stored in the cookie; reusing it as the
+    # refresh slot is sufficient for set_session to attach it to
+    # subsequent requests within this short-lived, per-request client.
+    return user_scoped_client(token, token)
+
+
 async def get_current_barber(request: Request):
     """
     Validates the JWT (from cookie or header) and returns the barber's
