@@ -9,6 +9,7 @@ from fastapi import Cookie, Header, HTTPException, Request, status
 import jwt
 from jwt import PyJWKClient
 from app.config import supabase, SUPABASE_URL, JWT_SECRET
+from app.security.crypto import decrypt_field
 
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
@@ -69,12 +70,10 @@ def _extract_token(request: Request) -> str:
     1. HttpOnly cookie (preferred — set by /login)
     2. Authorization: Bearer header (fallback for API clients)
     """
-    # Cookie takes priority — set by our login endpoint
     cookie_token = request.cookies.get(_COOKIE_NAME)
     if cookie_token:
         return cookie_token
 
-    # Fallback: Authorization header
     authorization = request.headers.get("Authorization", "")
     if authorization.startswith("Bearer "):
         return authorization.removeprefix("Bearer ").strip()
@@ -85,9 +84,21 @@ def _extract_token(request: Request) -> str:
     )
 
 
+def _decrypt_barber_profile(profile: dict) -> dict:
+    """Decrypts email/phone for in-app use; never exposes the raw enc/hash columns."""
+    out = dict(profile)
+    out["email"] = decrypt_field(profile.get("email_enc"))
+    out["phone"] = decrypt_field(profile.get("phone_enc")) if profile.get("phone_enc") else None
+    out.pop("email_enc", None)
+    out.pop("email_hash", None)
+    out.pop("phone_enc", None)
+    return out
+
+
 async def get_current_barber(request: Request):
     """
-    Validates the JWT (from cookie or header) and returns the barber's profile.
+    Validates the JWT (from cookie or header) and returns the barber's
+    profile, with email/phone decrypted.
     """
     token = _extract_token(request)
     payload = _decode_supabase_jwt(token)
@@ -111,7 +122,7 @@ async def get_current_barber(request: Request):
             detail="Barber not found or inactive.",
         )
 
-    return result.data
+    return _decrypt_barber_profile(result.data)
 
 
 def require_admin(x_admin_key: str = Header(default=None)):
