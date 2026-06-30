@@ -9,11 +9,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
-from app.config import CORS_ALLOWED_ORIGINS, DEBUG_LOGGING
+from app.config import CORS_ALLOWED_ORIGINS, DEBUG_LOGGING, ENVIRONMENT
 from app.logging_config import configure_logging
 from app.rate_limit import limiter
 from app.routers import admin, barber, public
-from app.config import CORS_ALLOWED_ORIGINS, DEBUG_LOGGING, ENVIRONMENT
 from app.middleware import (
     SecurityMiddleware,
     HTTPSEnforcementMiddleware,
@@ -26,10 +25,11 @@ configure_logging(debug=DEBUG_LOGGING)
 logger = logging.getLogger("barbershop.main")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+is_production = ENVIRONMENT == "production"
 
 app = FastAPI(
     title="BarberShop",
-    docs_url=None,   # disables /docs in production — remove if you want Swagger
+    docs_url=None,
     redoc_url=None,
 )
 
@@ -51,7 +51,6 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
-    # It never leaks Pydantic internals—only the field and the message.
     clean = [
         {"field": " → ".join(str(loc) for loc in e["loc"]), "message": e["msg"]}
         for e in errors
@@ -70,17 +69,17 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 # ------------------------------------------------------------------
-# Middleware
+# Middleware (ordem importa — último adicionado = mais externo)
 # ------------------------------------------------------------------
 
-@app.middleware("http")
-async def security_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    return response
+if CORS_ALLOWED_ORIGINS == ["*"] and is_production:
+    logger.warning("CORS is open to all origins (*). Restrict before deploying to production.")
+
+register_cors(app)                                                    # 1. innermost
+app.add_middleware(SecurityMiddleware)                                # 2. WAF + rate limit + IP block
+app.add_middleware(CloudflareOriginMiddleware)                        # 3. bloqueia acesso direto ao Render
+app.add_middleware(HTTPSEnforcementMiddleware, enforce=is_production) # 4. valida X-Forwarded-Proto
+app.add_middleware(RequestIDMiddleware)                               # 5. outermost
 
 
 @app.middleware("http")
@@ -96,29 +95,6 @@ async def request_logging(request: Request, call_next):
     return response
 
 
-# CORS — Logs a warning if it is too open.
-# REMOVER esse bloco todo:
-if CORS_ALLOWED_ORIGINS == ["*"]:
-    logger.warning("CORS is open to all origins (*). Restrict before deploying to production.")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ALLOWED_ORIGINS,
-    ...
-)
-
-# SUBSTITUIR POR:
-is_production = ENVIRONMENT == "production"
-
-if CORS_ALLOWED_ORIGINS == ["*"] and is_production:
-    logger.warning("CORS is open to all origins (*). Restrict before deploying to production.")
-
-register_cors(app)  # usa CORS_ALLOWED_ORIGINS internamente
-app.add_middleware(SecurityMiddleware)
-app.add_middleware(CloudflareOriginMiddleware)
-app.add_middleware(HTTPSEnforcementMiddleware, enforce=is_production)
-app.add_middleware(RequestIDMiddleware)
-
 # ------------------------------------------------------------------
 # Static files, templates, routers
 # ------------------------------------------------------------------
@@ -129,6 +105,11 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 app.include_router(public.router)
 app.include_router(barber.router)
 app.include_router(admin.router)
+
+
+@app.get("/health", include_in_schema=False)
+async def health():
+    return {"status": "ok"}
 
 
 @app.get("/", response_class=HTMLResponse)
