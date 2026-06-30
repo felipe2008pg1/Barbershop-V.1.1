@@ -410,14 +410,19 @@ def update_appointment_status(
     appointment_id: str,
     new_status: str,
     barber: dict,
+    db=None,
 ) -> dict:
+    """db, if provided, is a Supabase client scoped to the calling
+    barber's own JWT — ownership is then enforced by RLS. Falls back
+    to the service-role client if not provided."""
+    client = db or supabase
     barber_id = barber["id"]
 
     check_and_record_action(barber_id)
 
     try:
         existing = (
-            supabase.table("appointments")
+            client.table("appointments")
             .select("*")
             .eq("id", appointment_id)
             .eq("barber_id", barber_id)
@@ -447,7 +452,7 @@ def update_appointment_status(
 
     try:
         result = (
-            supabase.table("appointments")
+            client.table("appointments")
             .update({"status": new_status})
             .eq("id", appointment_id)
             .execute()
