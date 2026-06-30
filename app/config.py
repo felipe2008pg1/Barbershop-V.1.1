@@ -26,6 +26,22 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
 # NEVER expose this client to user-facing routes without explicit filters.
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
+# Public client: uses the anon key, respects RLS. Use this for any
+# read/write that should be limited to what an unauthenticated caller
+# is allowed to see per the public_read_active_* / public_insert_*
+# policies — e.g. listing active barbers/services. Built lazily so a
+# missing SUPABASE_ANON_KEY only breaks the routes that actually need it.
+_anon_client: Client | None = None
+
+
+def get_anon_client() -> Client:
+    global _anon_client
+    if _anon_client is None:
+        if not SUPABASE_ANON_KEY:
+            raise RuntimeError("SUPABASE_ANON_KEY is not configured.")
+        _anon_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    return _anon_client
+
 # ---------- Field-level encryption ----------
 # Fail fast at startup rather than at the first encrypted write/read —
 # a missing key here would otherwise surface as a confusing 500 deep
