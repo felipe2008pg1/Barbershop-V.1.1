@@ -13,11 +13,8 @@ from app.services.appointment_service import (
     get_availability,
     lookup_appointment,
 )
-
 router = APIRouter(prefix="/api/public", tags=["public"])
 logger = logging.getLogger("barbershop.public")
-
-
 def _lang(request: Request) -> str:
     lang = (request.headers.get("X-Lang") or "pt").strip().lower()
     return lang if lang in ("pt", "en") else "pt"
@@ -25,13 +22,16 @@ def _lang(request: Request) -> str:
 
 @router.get("/services")
 def list_services(request: Request):
-    from app.config import supabase
+    # Uses the anon-key client: this is unauthenticated, public data,
+    # and the public_read_active_services RLS policy is the actual
+    # enforcement here (not just the .eq("active", True) filter).
+    from app.config import get_anon_client
     from app.service_translations import translate_service_name
-
     lang = _lang(request)
     try:
         result = (
-            supabase.table("services")
+            get_anon_client()
+            .table("services")
             .select("id, name, duration_minutes, price")
             .eq("active", True)
             .order("name")
@@ -49,12 +49,12 @@ def list_services(request: Request):
 
 @router.get("/barbers")
 def list_barbers():
-    from app.config import supabase
+    from app.config import get_anon_client
     from fastapi import HTTPException
-
     try:
         result = (
-            supabase.table("barbers")
+            get_anon_client()
+            .table("barbers")
             .select("id, name, photo_url")
             .eq("active", True)
             .order("name")
@@ -77,6 +77,15 @@ def get_availability_route(
 @router.post("/appointments", status_code=201)
 @limiter.limit("5/minute")
 def create_appointment_route(request: Request, appointment: AppointmentCreate):
+    # Booking creation, lookup, cancel, and reschedule below stay on the
+    # service-role client (inside appointment_service.py) by design: the
+    # customer is never an authenticated Supabase principal (no login),
+    # so there's no auth.uid() for RLS to scope against. Least privilege
+    # for this flow is enforced at the application layer instead — strict
+    # Pydantic validation, the phone+confirmation_code ownership check on
+    # every read, and the public_insert_appointments policy's WITH CHECK
+    # (status/active-barber/active-service/date checks) as a second line
+    # of defense in case this code path is ever bypassed.
     client_ip = request.client.host if request.client else "unknown"
     return create_appointment(appointment.model_dump(mode="json"), client_ip)
 
@@ -99,6 +108,7 @@ def cancel_appointment_route(request: Request, appointment_id: str, lookup: Appo
         client_ip,
     )
 
+
 @router.put("/appointments/{appointment_id}/reschedule")
 @limiter.limit("5/minute")
 def reschedule_appointment_route(
@@ -109,7 +119,6 @@ def reschedule_appointment_route(
 ):
     from app.models import AppointmentReschedule
     from app.services.appointment_service import reschedule_appointment
-
     client_ip = request.client.host if request.client else "unknown"
     return reschedule_appointment(
         appointment_id,
