@@ -1,37 +1,25 @@
 """
 Authentication and authorization.
 
-- Barbers log in via Supabase Auth (email/password) and receive a JWT.
-- The frontend sends that JWT in the Authorization: Bearer <token> header.
-- get_current_barber validates the token and loads the barber's profile.
-  Supabase projects can sign tokens with either the legacy symmetric
-  secret (HS256) or the newer asymmetric keys (ES256/RS256). This module
-  supports both, picking the right verification method based on the
-  token's own header.
-- The admin area uses a simple secret key (ADMIN_API_KEY), since for now
-  only you (the owner) access that area.
+JWT is read preferentially from the HttpOnly cookie set at login.
+Falls back to Authorization: Bearer header for API clients / testing.
 """
 import os
-from fastapi import Header, HTTPException, status
+from fastapi import Cookie, Header, HTTPException, Request, status
 import jwt
 from jwt import PyJWKClient
 from app.config import supabase, SUPABASE_URL, JWT_SECRET
 
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
-
 JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 _jwks_client = PyJWKClient(JWKS_URL) if SUPABASE_URL else None
+_COOKIE_NAME = "barber_session"
+
 
 def _decode_supabase_jwt(token: str) -> dict:
     """
-    Decodes and validates a Supabase-issued JWT, supporting both signing
-    schemes used across Supabase projects:
-      - Legacy symmetric (HS256), verified with the project's JWT secret.
-      - New asymmetric (ES256/RS256), verified with the public key fetched
-        from the project's JWKS endpoint.
-
-    A leeway of 60 seconds is applied to tolerate clock drift between
-    this server and Supabase's auth server.
+    Decodes and validates a Supabase-issued JWT.
+    Supports HS256 (legacy) and ES256/RS256 (asymmetric).
     """
     try:
         unverified_header = jwt.get_unverified_header(token)
@@ -74,18 +62,34 @@ def _decode_supabase_jwt(token: str) -> dict:
             detail="Invalid or expired token.",
         )
 
-async def get_current_barber(authorization: str = Header(default=None)):
-    """
-    Validates the Supabase JWT sent by the logged-in barber and returns
-    the matching record from the `barbers` table.
-    """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token.",
-        )
 
-    token = authorization.removeprefix("Bearer ").strip()
+def _extract_token(request: Request) -> str:
+    """
+    Extracts the JWT from:
+    1. HttpOnly cookie (preferred — set by /login)
+    2. Authorization: Bearer header (fallback for API clients)
+    """
+    # Cookie takes priority — set by our login endpoint
+    cookie_token = request.cookies.get(_COOKIE_NAME)
+    if cookie_token:
+        return cookie_token
+
+    # Fallback: Authorization header
+    authorization = request.headers.get("Authorization", "")
+    if authorization.startswith("Bearer "):
+        return authorization.removeprefix("Bearer ").strip()
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Missing authentication token.",
+    )
+
+
+async def get_current_barber(request: Request):
+    """
+    Validates the JWT (from cookie or header) and returns the barber's profile.
+    """
+    token = _extract_token(request)
     payload = _decode_supabase_jwt(token)
 
     barber_id = payload.get("sub")
@@ -109,12 +113,16 @@ async def get_current_barber(authorization: str = Header(default=None)):
 
     return result.data
 
+
 def require_admin(x_admin_key: str = Header(default=None)):
     """
-    Protects admin routes (barber registration and service management).
-    Compares the X-Admin-Key header against the ADMIN_API_KEY env var.
+    Protects admin routes via X-Admin-Key header.
+    Uses constant-time comparison to prevent timing attacks.
     """
-    if not ADMIN_API_KEY or x_admin_key != ADMIN_API_KEY:
+    import hmac
+    if not ADMIN_API_KEY:
+        raise HTTPException(status_code=500, detail="Server misconfiguration.")
+    if not x_admin_key or not hmac.compare_digest(x_admin_key, ADMIN_API_KEY):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid administrator access.",
