@@ -1,34 +1,89 @@
-services:
-  - type: web
-    name: barbershop-api
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
-    healthCheckPath: /health
-    envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
-      - key: ADMIN_API_KEY
-        sync: false
-      - key: CORS_ALLOWED_ORIGINS
-        sync: false
-      - key: CLOUDFLARE_ORIGIN_SECRET
-        sync: false
-      - key: ENFORCE_CLOUDFLARE_ORIGIN
-        value: "false"   # mude para "true" após configurar Cloudflare
-      - key: DEBUG_LOGGING
-        value: "false"
-      - key: RATE_LIMIT_BOOKING
-        value: 5/minute
-      - key: RATE_LIMIT_LOOKUP
-        value: 10/minute
-      - key: RATE_LIMIT_LOGIN
-        value: 10/minute
+name: Supabase Backup
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'   # toda domingo, 03:00 UTC
+  workflow_dispatch: {}    # permite rodar manualmente em Actions > Run workflow
+
+permissions:
+  contents: write   # necessário só para criar a Release; nada além disso
+
+concurrency:
+  group: supabase-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    container:
+      image: postgres:17-alpine   # traz pg_dump pronto; precisa ser >= versão do servidor Supabase
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar secrets presentes
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$GPG_PASSPHRASE" ]; then
+            echo "::error::Secrets SUPABASE_DB_URL e/ou BACKUP_GPG_PASSPHRASE não configurados."
+            exit 1
+          fi
+
+      - name: Instalar gnupg
+        run: apk add --no-cache gnupg
+
+      - name: Gerar dump (sem expor connection string nos logs)
+        run: |
+          set -euo pipefail
+          STAMP=$(date -u +%Y%m%d_%H%M%S)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          pg_dump "$SUPABASE_DB_URL?sslmode=require" \
+            --no-owner --no-acl --format=plain \
+            --file="backup_${STAMP}.sql" 2> dump_error.log
+        env:
+          PGCONNECT_TIMEOUT: 15
+
+      - name: Mostrar erro genérico em caso de falha (sem vazar a connection string)
+        if: failure()
+        run: |
+          echo "Falha no pg_dump. Verifique credenciais e conectividade."
+          grep -v -i "postgresql://" dump_error.log || true
+
+      - name: Criptografar dump (AES-256, simétrico)
+        run: |
+          gpg --batch --yes --passphrase "$GPG_PASSPHRASE" \
+              --symmetric --cipher-algo AES256 \
+              --output "backup_${STAMP}.sql.gpg" \
+              "backup_${STAMP}.sql"
+          shred -u "backup_${STAMP}.sql"   # remove o .sql em texto plano do runner
+
+      - name: Publicar como Release no repositório PRIVADO de backups
+        run: |
+          gh release create "backup-${STAMP}" \
+            "backup_${STAMP}.sql.gpg" \
+            --repo "${{ secrets.BACKUP_REPO }}" \
+            --title "Backup ${STAMP}" \
+            --notes "Backup automático do Supabase. Arquivo criptografado (GPG/AES256)." \
+            --latest=false
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+
+      - name: Limpar backups antigos (mantém os últimos 8)
+        run: |
+          set -euo pipefail
+          mapfile -t releases < <(gh release list --repo "${{ secrets.BACKUP_REPO }}" \
+            --limit 200 --json tagName,createdAt \
+            --jq '.[] | select(.tagName | startswith("backup-")) | .tagName' )
+          total=${#releases[@]}
+          keep=8
+          if [ "$total" -gt "$keep" ]; then
+            to_delete=("${releases[@]:keep}")
+            for tag in "${to_delete[@]}"; do
+              echo "Removendo release antigo: $tag"
+              gh release delete "$tag" --repo "${{ secrets.BACKUP_REPO }}" --yes --cleanup-tag
+            done
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
