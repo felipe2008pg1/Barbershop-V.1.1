@@ -3,35 +3,61 @@ Barber area routes (requires login via Supabase Auth).
 """
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
+from fastapi import APIRouter, Cookie, HTTPException, Depends, Query, Request, Response
 from app.service_translations import translate_service_name
-from app.config import supabase
+from app.config import supabase, ENVIRONMENT
 from app.auth import get_current_barber
 from app.models import AppointmentUpdate, ScheduleSlot, TimeOffCreate, BarberLogin
 from app.rate_limit import limiter
+from app.security.login_guard import login_guard
+from app.security.password_policy import validate_password
 
 router = APIRouter(prefix="/api/barber", tags=["barber"])
 logger = logging.getLogger("barbershop.barber")
 
+_COOKIE_NAME = "barber_session"
+_IS_PROD = ENVIRONMENT == "production"
+
+
+def _set_session_cookie(response: Response, token: str, max_age: int = 3600) -> None:
+    """
+    Stores the JWT in an HttpOnly + Secure + SameSite=Strict cookie.
+    Never accessible via JavaScript — eliminates XSS token theft.
+    """
+    response.set_cookie(
+        key=_COOKIE_NAME,
+        value=token,
+        max_age=max_age,           # seconds; matches Supabase JWT TTL
+        httponly=True,             # JS cannot read this cookie
+        secure=_IS_PROD,           # HTTPS only in production
+        samesite="strict",         # never sent on cross-site requests (CSRF protection)
+        path="/api/barber",        # scoped — not sent to other routes
+    )
+
 
 @router.post("/login")
 @limiter.limit("10/minute")
-def login(request: Request, credentials: BarberLogin):
+def login(request: Request, response: Response, credentials: BarberLogin):
     """
-    Logs the barber in using email/password against Supabase Auth.
-    Returns the access_token (JWT) to be used in subsequent requests.
+    Authenticates the barber and returns profile data.
+    The JWT is stored in an HttpOnly cookie — NOT returned in the body.
+    """
+    client_ip = request.client.host if request.client else "unknown"
 
-    Rate limited to slow down credential brute-forcing attempts.
-    """
+    # Lockout check — blocks IP after repeated failures
+    login_guard.check(client_ip, credentials.email)
+
     try:
         result = supabase.auth.sign_in_with_password(
             {"email": credentials.email, "password": credentials.password}
         )
     except Exception:
-        logger.info("Failed login attempt for %s from %s", credentials.email, request.client.host)
+        login_guard.record_failure(client_ip, credentials.email)
+        logger.info("Failed login attempt for %s from %s", credentials.email, client_ip)
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     if not result or not result.session:
+        login_guard.record_failure(client_ip, credentials.email)
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     try:
@@ -52,16 +78,67 @@ def login(request: Request, credentials: BarberLogin):
     if not profile.data.get("active"):
         raise HTTPException(status_code=403, detail="Barber account is inactive.")
 
-    logger.info("Barber %s logged in", credentials.email)
-    return {
-        "access_token": result.session.access_token,
-        "barber": profile.data,
-    }
+    login_guard.record_success(client_ip, credentials.email)
+
+    # JWT goes into HttpOnly cookie — never in the response body
+    _set_session_cookie(
+        response,
+        result.session.access_token,
+        max_age=result.session.expires_in or 3600,
+    )
+
+    logger.info("Barber %s logged in from %s", credentials.email, client_ip)
+
+    # Return profile only — token is in the cookie
+    return {"barber": profile.data}
+
+
+@router.post("/logout")
+def logout(response: Response, barber: dict = Depends(get_current_barber)):
+    """Clears the session cookie and invalidates the Supabase session."""
+    try:
+        supabase.auth.sign_out()
+    except Exception:
+        pass  # best-effort; cookie deletion is what matters client-side
+
+    response.delete_cookie(
+        key=_COOKIE_NAME,
+        path="/api/barber",
+        httponly=True,
+        secure=_IS_PROD,
+        samesite="strict",
+    )
+    logger.info("Barber %s logged out", barber.get("id"))
+    return {"detail": "Logged out."}
+
+
+@router.post("/change-password")
+def change_password(
+    request: Request,
+    body: dict,
+    barber: dict = Depends(get_current_barber),
+):
+    """
+    Changes the barber's password.
+    Enforces the password policy before calling Supabase.
+    """
+    new_password = body.get("new_password", "")
+
+    # Validate policy — raises HTTPException on failure
+    validate_password(new_password)
+
+    try:
+        supabase.auth.update_user({"password": new_password})
+    except Exception:
+        logger.exception("Failed to change password for barber %s", barber.get("id"))
+        raise HTTPException(status_code=503, detail="Could not change password right now.")
+
+    logger.info("Password changed for barber %s", barber.get("id"))
+    return {"detail": "Password updated successfully."}
 
 
 @router.get("/me")
 def get_me(barber: dict = Depends(get_current_barber)):
-    """Returns the authenticated barber's profile."""
     return barber
 
 
@@ -72,11 +149,6 @@ def list_my_appointments(
     status: Optional[str] = Query(default=None),
     barber: dict = Depends(get_current_barber),
 ):
-    """
-    Lists the logged-in barber's appointments, including full
-    customer details (name, phone, email). Service names are
-    translated based on the X-Lang request header.
-    """
     if status is not None and status not in {"scheduled", "completed", "cancelled"}:
         raise HTTPException(status_code=400, detail="Invalid status filter.")
 
@@ -112,19 +184,12 @@ def update_appointment(
     data: AppointmentUpdate,
     barber: dict = Depends(get_current_barber),
 ):
-    """
-    Updates an appointment.
-    If 'status' is in the payload, routes through the validated
-    transition pipeline. Other fields (notes, time, etc.) are updated
-    directly after confirming ownership.
-    """
     from app.services.appointment_service import update_appointment_status
 
     payload = {k: v for k, v in data.model_dump(mode="json").items() if v is not None}
     if not payload:
         raise HTTPException(status_code=400, detail="No data to update.")
 
-    # Status change → full validation pipeline
     if "status" in payload:
         if len(payload) > 1:
             raise HTTPException(
@@ -133,7 +198,6 @@ def update_appointment(
             )
         return update_appointment_status(appointment_id, payload["status"], barber)
 
-    # Non-status update (notes, time, etc.) — verify ownership first
     try:
         existing = (
             supabase.table("appointments")
@@ -177,11 +241,8 @@ def update_appointment(
         raise HTTPException(status_code=503, detail="Could not update the appointment right now.")
 
 
-# ---------- Weekly schedule (each barber sets their own) ----------
-
 @router.get("/schedule")
 def get_schedule(barber: dict = Depends(get_current_barber)):
-    """Returns the schedule configured by the logged-in barber."""
     try:
         result = (
             supabase.table("barber_schedules")
@@ -198,20 +259,14 @@ def get_schedule(barber: dict = Depends(get_current_barber)):
 
 @router.put("/schedule")
 def set_schedule(slots: list[ScheduleSlot], barber: dict = Depends(get_current_barber)):
-    """
-    Replaces the logged-in barber's weekly schedule with the provided list.
-    Send one item per weekday they work.
-    """
     weekdays = [s.weekday for s in slots]
     if len(weekdays) != len(set(weekdays)):
         raise HTTPException(status_code=400, detail="Each weekday can only appear once in the schedule.")
 
     try:
         supabase.table("barber_schedules").delete().eq("barber_id", barber["id"]).execute()
-
         if not slots:
             return []
-
         payload = [
             {**slot.model_dump(mode="json"), "barber_id": barber["id"]} for slot in slots
         ]
@@ -222,8 +277,6 @@ def set_schedule(slots: list[ScheduleSlot], barber: dict = Depends(get_current_b
         logger.exception("Failed to save barber schedule")
         raise HTTPException(status_code=503, detail="Could not save the schedule right now.")
 
-
-# ---------- Time off / blocked periods ----------
 
 @router.get("/time-off")
 def list_time_off(barber: dict = Depends(get_current_barber)):
