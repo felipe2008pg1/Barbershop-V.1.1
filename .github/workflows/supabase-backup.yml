@@ -16,7 +16,7 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     container:
-      image: postgres:16-alpine   # traz pg_dump pronto, sem precisar instalar nada via apt
+      image: postgres:17-alpine   # traz pg_dump pronto; precisa ser >= versão do servidor Supabase
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
