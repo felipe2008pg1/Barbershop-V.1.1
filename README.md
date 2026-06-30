@@ -102,58 +102,7 @@ Unlike the previous version, this system uses a **real cloud infrastructure**, r
 ## 📂 Project Structure
 
 ```bash
-app/
-├── routers/
-│   ├── __init__.py
-│   ├── admin.py
-│   ├── barber.py
-│   └── public.py
-├── services/
-│   ├── __init__.py
-│   ├── appointment_service.py
-│   ├── audit_service.py
-│   └── barber_rate_guard.py
-├── __init__.py
-├── auth.py
-├── config.py
-├── exceptions.py
-├── logging_config.py
-├── main.py
-├── models.py
-├── rate_limit.py
-└── service_translations.py
-│
-static/
-├── css/
-│   └── style.css
-├── favicon/
-│   ├── android-chrome-192x192.png
-│   ├── android-chrome-512x512.png
-│   ├── apple-touch-icon.png
-│   ├── favicon-16x16.png
-│   ├── favicon-32x32.png
-│   ├── favicon-48x48.png
-│   ├── favicon.ico
-│   └── validadot
-└── js/
-│   ├── admin.js
-│   ├── barber.js
-│   ├── config.js
-│   ├── i18n.js
-│   ├── public.js
-│   └── theme.js
-│
-templates/
-├── admin.html
-├── barber.html
-└── index.html
-│
-├── .env.example
-├── .gitignore
-├── README.md
-├── render.yaml
-├── requirements.txt
-└── supabase_schema.sql
+> UPDATING
 ```
 ## 🔄 System Evolution — V1.0 vs V1.1
 
