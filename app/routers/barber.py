@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Cookie, HTTPException, Depends, Query, Request, Response
 from app.service_translations import translate_service_name
 from app.config import supabase, ENVIRONMENT
-from app.auth import get_current_barber
+from app.auth import get_current_barber, get_barber_db
 from app.models import (
     AppointmentUpdate,
     ScheduleSlot,
@@ -367,6 +367,7 @@ def list_my_appointments(
     date: Optional[str] = Query(default=None),
     status: Optional[str] = Query(default=None),
     barber: dict = Depends(get_current_barber),
+    db=Depends(get_barber_db),
 ):
     if status is not None and status not in {"scheduled", "completed", "cancelled"}:
         raise HTTPException(status_code=400, detail="Invalid status filter.")
@@ -377,7 +378,7 @@ def list_my_appointments(
 
     try:
         query = (
-            supabase.table("appointments")
+            db.table("appointments")
             .select("*, services(name, price, duration_minutes)")
             .eq("barber_id", barber["id"])
         )
@@ -389,6 +390,11 @@ def list_my_appointments(
         result = query.order("date").order("time").execute()
         appointments = result.data or []
         for appt in appointments:
+            appt["client_phone"] = decrypt_field(appt.get("client_phone_enc"))
+            appt["client_email"] = decrypt_field(appt.get("client_email_enc")) if appt.get("client_email_enc") else None
+            appt.pop("client_phone_enc", None)
+            appt.pop("client_phone_hash", None)
+            appt.pop("client_email_enc", None)
             if appt.get("services"):
                 appt["services"]["name"] = translate_service_name(appt["services"]["name"], lang)
         return appointments
@@ -402,6 +408,7 @@ def update_appointment(
     appointment_id: str,
     data: AppointmentUpdate,
     barber: dict = Depends(get_current_barber),
+    db=Depends(get_barber_db),
 ):
     from app.services.appointment_service import update_appointment_status
 
@@ -415,11 +422,11 @@ def update_appointment(
                 status_code=400,
                 detail="Status must be updated alone, not mixed with other fields.",
             )
-        return update_appointment_status(appointment_id, payload["status"], barber)
+        return update_appointment_status(appointment_id, payload["status"], barber, db=db)
 
     try:
         existing = (
-            supabase.table("appointments")
+            db.table("appointments")
             .select("id")
             .eq("id", appointment_id)
             .eq("barber_id", barber["id"])
@@ -435,7 +442,7 @@ def update_appointment(
 
     try:
         result = (
-            supabase.table("appointments")
+            db.table("appointments")
             .update(payload)
             .eq("id", appointment_id)
             .execute()
@@ -461,10 +468,10 @@ def update_appointment(
 
 
 @router.get("/schedule")
-def get_schedule(barber: dict = Depends(get_current_barber)):
+def get_schedule(barber: dict = Depends(get_current_barber), db=Depends(get_barber_db)):
     try:
         result = (
-            supabase.table("barber_schedules")
+            db.table("barber_schedules")
             .select("*")
             .eq("barber_id", barber["id"])
             .order("weekday")
@@ -477,19 +484,23 @@ def get_schedule(barber: dict = Depends(get_current_barber)):
 
 
 @router.put("/schedule")
-def set_schedule(slots: list[ScheduleSlot], barber: dict = Depends(get_current_barber)):
+def set_schedule(
+    slots: list[ScheduleSlot],
+    barber: dict = Depends(get_current_barber),
+    db=Depends(get_barber_db),
+):
     weekdays = [s.weekday for s in slots]
     if len(weekdays) != len(set(weekdays)):
         raise HTTPException(status_code=400, detail="Each weekday can only appear once in the schedule.")
 
     try:
-        supabase.table("barber_schedules").delete().eq("barber_id", barber["id"]).execute()
+        db.table("barber_schedules").delete().eq("barber_id", barber["id"]).execute()
         if not slots:
             return []
         payload = [
             {**slot.model_dump(mode="json"), "barber_id": barber["id"]} for slot in slots
         ]
-        result = supabase.table("barber_schedules").insert(payload).execute()
+        result = db.table("barber_schedules").insert(payload).execute()
         logger.info("Schedule updated for barber %s (%d active days)", barber["id"], len(slots))
         return result.data or []
     except Exception:
@@ -498,10 +509,10 @@ def set_schedule(slots: list[ScheduleSlot], barber: dict = Depends(get_current_b
 
 
 @router.get("/time-off")
-def list_time_off(barber: dict = Depends(get_current_barber)):
+def list_time_off(barber: dict = Depends(get_current_barber), db=Depends(get_barber_db)):
     try:
         result = (
-            supabase.table("barber_time_off")
+            db.table("barber_time_off")
             .select("*")
             .eq("barber_id", barber["id"])
             .order("date")
@@ -514,10 +525,14 @@ def list_time_off(barber: dict = Depends(get_current_barber)):
 
 
 @router.post("/time-off", status_code=201)
-def create_time_off(data: TimeOffCreate, barber: dict = Depends(get_current_barber)):
+def create_time_off(
+    data: TimeOffCreate,
+    barber: dict = Depends(get_current_barber),
+    db=Depends(get_barber_db),
+):
     try:
         payload = {**data.model_dump(mode="json"), "barber_id": barber["id"]}
-        result = supabase.table("barber_time_off").insert(payload).execute()
+        result = db.table("barber_time_off").insert(payload).execute()
         if not result.data:
             raise HTTPException(status_code=400, detail="Could not create time off.")
         return result.data[0]
@@ -529,10 +544,14 @@ def create_time_off(data: TimeOffCreate, barber: dict = Depends(get_current_barb
 
 
 @router.delete("/time-off/{time_off_id}", status_code=204)
-def delete_time_off(time_off_id: str, barber: dict = Depends(get_current_barber)):
+def delete_time_off(
+    time_off_id: str,
+    barber: dict = Depends(get_current_barber),
+    db=Depends(get_barber_db),
+):
     try:
         existing = (
-            supabase.table("barber_time_off")
+            db.table("barber_time_off")
             .select("id")
             .eq("id", time_off_id)
             .eq("barber_id", barber["id"])
@@ -547,7 +566,7 @@ def delete_time_off(time_off_id: str, barber: dict = Depends(get_current_barber)
         raise HTTPException(status_code=404, detail="Time off entry not found.")
 
     try:
-        supabase.table("barber_time_off").delete().eq("id", time_off_id).execute()
+        db.table("barber_time_off").delete().eq("id", time_off_id).execute()
     except Exception:
         logger.exception("Failed to delete time off")
         raise HTTPException(status_code=503, detail="Could not delete time off right now.")
