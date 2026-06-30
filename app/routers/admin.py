@@ -14,6 +14,7 @@ from app.config import supabase
 from app.auth import require_admin
 from app.models import BarberCreate, BarberUpdate, ServiceCreate, ServiceUpdate
 from app.rate_limit import limiter
+from app.security.password_policy import validate_password
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 logger = logging.getLogger("barbershop.admin")
@@ -39,6 +40,11 @@ def create_barber(request: Request, data: BarberCreate):
     Creates the barber's login in Supabase Auth and the matching
     profile in the `barbers` table.
     """
+    # Defense in depth: BarberCreate already enforces the password policy
+    # via its field_validator, but re-checking here guarantees this route
+    # never creates a weak-password account even if the model changes.
+    validate_password(data.password, data.email)
+
     try:
         existing = (
             supabase.table("barbers")
@@ -213,17 +219,6 @@ def get_dashboard(
     a date range.
 
     If no date range is given, defaults to the last 30 days.
-
-    Response shape:
-    {
-        "total_revenue": float,
-        "total_completed": int,
-        "period_start": "YYYY-MM-DD",
-        "period_end": "YYYY-MM-DD",
-        "revenue_by_day": [{"date": "YYYY-MM-DD", "revenue": float, "count": int}, ...],
-        "revenue_by_barber": [{"barber_id": str, "barber_name": str, "revenue": float, "count": int}, ...],
-        "revenue_by_service": [{"service_id": str, "service_name": str, "revenue": float, "count": int}, ...]
-    }
     """
     if end_date is None:
         end_date = date.today()
@@ -380,7 +375,6 @@ def get_today_summary():
     total = len(appointments)
     completed = sum(1 for a in appointments if a["status"] == "completed")
     cancelled = sum(1 for a in appointments if a["status"] == "cancelled")
-    # No-show: still 'scheduled' but time has already passed
     no_show = sum(
         1 for a in appointments
         if a["status"] == "scheduled" and a["time"] < now_time
@@ -467,7 +461,6 @@ def get_peak_hours(
     """
     Returns appointment counts grouped by hour of day and weekday,
     counting only completed appointments.
-    Useful for identifying the busiest times.
     """
     if end_date is None:
         end_date = date.today()
@@ -498,7 +491,6 @@ def get_peak_hours(
         by_hour[hour] += 1
 
         appt_date = dt.strptime(appt["date"], "%Y-%m-%d")
-        # Convert Python weekday (Mon=0) to DB weekday (Sun=0)
         weekday_db = (appt_date.weekday() + 1) % 7
         by_weekday[weekday_db] += 1
 
