@@ -102,7 +102,7 @@ Unlike the previous version, this system uses a **real cloud infrastructure**, r
 ## 📂 Project Structure
 
 ```bash
-> UPDATING
+> UPDATING NOW...
 ```
 ## 🔄 System Evolution — V1.0 vs V1.1
 
