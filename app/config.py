@@ -26,26 +26,35 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
 # NEVER expose this client to user-facing routes without explicit filters.
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
+# ---------- Field-level encryption ----------
+# Fail fast at startup rather than at the first encrypted write/read —
+# a missing key here would otherwise surface as a confusing 500 deep
+# inside a request.
+if not os.getenv("DATA_ENCRYPTION_KEY"):
+    raise RuntimeError(
+        "DATA_ENCRYPTION_KEY must be set. Generate one with: "
+        "python -c \"import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())\""
+    )
+if not os.getenv("DATA_BLIND_INDEX_KEY"):
+    raise RuntimeError(
+        "DATA_BLIND_INDEX_KEY must be set. Generate one with: "
+        "python -c \"import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())\""
+    )
+
 # ---------- Application / security ----------
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 
-# Comma-separated origins allowed to call the API from a browser.
 _raw_cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _raw_cors_origins.split(",") if o.strip()]
-
 if CORS_ALLOWED_ORIGINS == ["*"]:
     logger.warning(
         "CORS_ALLOWED_ORIGINS is set to '*' (any origin allowed). "
         "Set this to your real domain(s) before deploying to production."
     )
 
-# Cloudflare origin protection
-# Set CLOUDFLARE_ORIGIN_SECRET to a random 32-char string (same value
-# configured in Cloudflare Transform Rules as X-Origin-Secret header).
 CLOUDFLARE_ORIGIN_SECRET = os.getenv("CLOUDFLARE_ORIGIN_SECRET", "")
 ENFORCE_CLOUDFLARE_ORIGIN = os.getenv("ENFORCE_CLOUDFLARE_ORIGIN", "false").lower() == "true"
 
-# Toggle for verbose request/error logging.
 DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "false").lower() in ("1", "true", "yes")
 
 # ---------- Rate limiting ----------
