@@ -8,6 +8,12 @@ Status transition rules (enforced here AND in DB trigger):
   cancelled  → nothing
 
 Extra rule: cannot mark as completed before the appointment datetime.
+
+PII handling: client_phone and client_email are stored encrypted
+(client_phone_enc / client_email_enc). Equality lookups on phone use
+a deterministic blind index (client_phone_hash) instead of the raw
+value. confirmation_code stays in plaintext — it's a low-entropy,
+intentionally shareable lookup token, not personal data.
 """
 import math
 import logging
@@ -25,13 +31,12 @@ from app.exceptions import (
     SlotUnavailableError,
 )
 from app.services.audit_service import log_appointment_event
+from app.security.crypto import encrypt_field, decrypt_field, blind_index
 
 logger = logging.getLogger("barbershop.services.appointment")
 
 _MAX_BOOKINGS_PER_IP_PER_DAY = 3
 
-# Allowed transitions — single source of truth in Python
-# (DB trigger is the safety net, this is the first line of defense)
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     "pending":   {"scheduled", "cancelled"},
     "scheduled": {"completed", "cancelled"},
@@ -43,6 +48,23 @@ _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 def _generate_confirmation_code() -> str:
     alphabet = string.ascii_uppercase + string.digits
     return "".join(random.choices(alphabet, k=4))
+
+
+def _decrypt_appointment_row(row: dict) -> dict:
+    """
+    Returns a copy of the DB row with PII decrypted for the API
+    response. Never mutates the original (which may be passed to the
+    audit log right after, and must stay encrypted there).
+    """
+    if not row:
+        return row
+    out = dict(row)
+    out["client_phone"] = decrypt_field(row.get("client_phone_enc"))
+    out["client_email"] = decrypt_field(row.get("client_email_enc")) if row.get("client_email_enc") else None
+    out.pop("client_phone_enc", None)
+    out.pop("client_phone_hash", None)
+    out.pop("client_email_enc", None)
+    return out
 
 
 def generate_slots(start_time: str, end_time: str, slot_minutes: int) -> list[str]:
@@ -69,16 +91,11 @@ def validate_status_transition(
     actor_type: str = "barber",
     ip_address: str | None = None,
 ) -> None:
-    """
-    First line of defense.
-    Logs invalid attempts to the audit log before raising.
-    """
     allowed = _ALLOWED_TRANSITIONS.get(current, set())
     if requested == current:
         return
 
     if requested not in allowed:
-        # Log the failed attempt
         log_appointment_event(
             appointment_id=appointment_id,
             actor_id=actor_id,
@@ -101,10 +118,6 @@ def validate_status_transition(
 
 
 def validate_completion_time(appt: dict) -> None:
-    """
-    Cannot mark as completed before the appointment's scheduled datetime.
-    Mirrors the DB trigger so the error message is clear to the caller.
-    """
     from zoneinfo import ZoneInfo
     tz = ZoneInfo("America/Sao_Paulo")
     appt_dt_str = f"{appt['date']}T{appt['time']}"
@@ -121,11 +134,12 @@ def validate_completion_time(appt: dict) -> None:
 # ------------------------------------------------------------------
 
 def _check_no_active_booking(client_phone: str) -> None:
+    phone_hash = blind_index(client_phone)
     try:
         result = (
             supabase.table("appointments")
             .select("id")
-            .eq("client_phone", client_phone)
+            .eq("client_phone_hash", phone_hash)
             .eq("status", "scheduled")
             .limit(1)
             .execute()
@@ -169,10 +183,6 @@ def _check_ip_daily_limit(client_ip: str) -> None:
 
 
 def _check_slot_within_schedule(barber_id: str, appt_date: date_type, appt_time: str) -> None:
-    # Before
-    weekday_db = (appt_date.weekday() + 1) % 7
-
-    # After
     from datetime import date as date_type_cls
     if isinstance(appt_date, str):
         appt_date = date_type_cls.fromisoformat(appt_date)
@@ -275,6 +285,7 @@ def create_appointment(payload: dict, client_ip: str) -> dict:
     from datetime import date as _date_cls
 
     client_phone = payload["client_phone"]
+    client_email = payload.get("client_email")
     raw_date = payload["date"]
     appt_date = _date_cls.fromisoformat(raw_date) if isinstance(raw_date, str) else raw_date
     appt_time: str = str(payload["time"])
@@ -318,6 +329,10 @@ def create_appointment(payload: dict, client_ip: str) -> dict:
     user_notes = payload.get("notes") or ""
     notes_with_ip = f"[ip:{client_ip}] {user_notes}".strip()
 
+    phone_enc = encrypt_field(client_phone)
+    phone_hash = blind_index(client_phone)
+    email_enc = encrypt_field(client_email) if client_email else None
+
     last_error = None
     for attempt in range(5):
         code = _generate_confirmation_code()
@@ -328,8 +343,9 @@ def create_appointment(payload: dict, client_ip: str) -> dict:
                     "p_barber_id": payload["barber_id"],
                     "p_service_id": payload["service_id"],
                     "p_client_name": payload["client_name"],
-                    "p_client_phone": client_phone,
-                    "p_client_email": payload.get("client_email"),
+                    "p_client_phone_enc": phone_enc,
+                    "p_client_phone_hash": phone_hash,
+                    "p_client_email_enc": email_enc,
                     "p_date": str(appt_date),
                     "p_time": appt_time,
                     "p_notes": notes_with_ip,
@@ -342,9 +358,10 @@ def create_appointment(payload: dict, client_ip: str) -> dict:
 
             row = result.data[0]
 
+            # Audit log gets the raw (still-encrypted) row — never decrypted PII at rest.
             log_appointment_event(
                 appointment_id=row["id"],
-                actor_id=client_phone,
+                actor_id=phone_hash,
                 actor_type="customer",
                 action="created",
                 before_status=None,
@@ -360,10 +377,10 @@ def create_appointment(payload: dict, client_ip: str) -> dict:
                 client_phone[-4:], client_ip, attempt + 1,
             )
 
-            if row.get("notes", "").startswith(f"[ip:{client_ip}]"):
-                row["notes"] = user_notes or None
-
-            return row
+            decrypted = _decrypt_appointment_row(row)
+            if decrypted.get("notes", "").startswith(f"[ip:{client_ip}]"):
+                decrypted["notes"] = user_notes or None
+            return decrypted
 
         except HTTPException:
             raise
@@ -394,21 +411,10 @@ def update_appointment_status(
     new_status: str,
     barber: dict,
 ) -> dict:
-    """
-    Full validated status-change pipeline:
-      1. Rate guard (short window + daily limit)
-      2. Fetch current state + ownership check
-      3. Transition validation (Python + DB trigger)
-      4. Completion time rule
-      5. DB update
-      6. Audit log
-    """
     barber_id = barber["id"]
 
-    # ── 1. Rate guard ────────────────────────────────────────────────
     check_and_record_action(barber_id)
 
-    # ── 2. Fetch appointment ─────────────────────────────────────────
     try:
         existing = (
             supabase.table("appointments")
@@ -428,7 +434,6 @@ def update_appointment_status(
     appt = existing.data
     current_status = appt["status"]
 
-    # ── 3. Transition validation (logs invalid attempts) ─────────────
     validate_status_transition(
         current_status,
         new_status,
@@ -437,11 +442,9 @@ def update_appointment_status(
         actor_type="barber",
     )
 
-    # ── 4. Completion time rule ──────────────────────────────────────
     if new_status == "completed":
         validate_completion_time(appt)
 
-    # ── 5. DB update (trigger is the safety net) ─────────────────────
     try:
         result = (
             supabase.table("appointments")
@@ -454,7 +457,6 @@ def update_appointment_status(
 
         updated = result.data[0]
 
-        # ── 6. Audit log ─────────────────────────────────────────────
         log_appointment_event(
             appointment_id=appointment_id,
             actor_id=barber_id,
@@ -470,7 +472,7 @@ def update_appointment_status(
             "Status changed: id=%s %s → %s barber=%s",
             appointment_id, current_status, new_status, barber_id,
         )
-        return updated
+        return _decrypt_appointment_row(updated)
 
     except HTTPException:
         raise
@@ -491,11 +493,12 @@ def update_appointment_status(
 def lookup_appointment(client_phone: str, confirmation_code: str, lang: str) -> dict:
     from app.service_translations import translate_service_name
 
+    phone_hash = blind_index(client_phone)
     try:
         result = (
             supabase.table("appointments")
             .select("*, services(name, price, duration_minutes), barbers(name)")
-            .eq("client_phone", client_phone)
+            .eq("client_phone_hash", phone_hash)
             .eq("confirmation_code", confirmation_code.strip().upper())
             .maybe_single()
             .execute()
@@ -507,7 +510,7 @@ def lookup_appointment(client_phone: str, confirmation_code: str, lang: str) -> 
     if not result or not result.data:
         raise NotFoundError("Appointment")
 
-    appt = result.data
+    appt = _decrypt_appointment_row(result.data)
     notes = appt.get("notes") or ""
     if notes.startswith("[ip:"):
         appt["notes"] = notes.split("] ", 1)[1] if "] " in notes else None
@@ -524,12 +527,13 @@ def cancel_appointment(
 ) -> dict:
     from app.service_translations import translate_service_name
 
+    phone_hash = blind_index(client_phone)
     try:
         existing = (
             supabase.table("appointments")
             .select("*")
             .eq("id", appointment_id)
-            .eq("client_phone", client_phone)
+            .eq("client_phone_hash", phone_hash)
             .eq("confirmation_code", confirmation_code.strip().upper())
             .maybe_single()
             .execute()
@@ -544,7 +548,6 @@ def cancel_appointment(
     appt = existing.data
     current_status = appt["status"]
 
-    # Validate transition (scheduled → cancelled only)
     validate_status_transition(current_status, "cancelled")
 
     try:
@@ -552,7 +555,7 @@ def cancel_appointment(
 
         log_appointment_event(
             appointment_id=appointment_id,
-            actor_id=client_phone,
+            actor_id=phone_hash,
             actor_type="customer",
             action="cancelled",
             before_status=current_status,
@@ -575,6 +578,7 @@ def cancel_appointment(
             .execute()
         )
         row = full.data if full and full.data else {**appt, "status": "cancelled"}
+        row = _decrypt_appointment_row(row)
 
         notes = row.get("notes") or ""
         if notes.startswith("[ip:"):
@@ -593,9 +597,10 @@ def cancel_appointment(
             raise ConflictError(f"Cannot cancel an appointment with status '{current_status}'.")
         logger.exception("Failed to cancel appointment=%s", appointment_id)
         raise ServiceUnavailableError("Could not cancel the appointment right now.")
-    
-# Maximum number of reschedules allowed per appointment
+
+
 _MAX_RESCHEDULES = 3
+
 
 def reschedule_appointment(
     appointment_id: str,
@@ -603,35 +608,21 @@ def reschedule_appointment(
     new_time_str: str,
     *,
     actor_id: str,
-    actor_type: str,   # 'customer' | 'barber'
+    actor_type: str,
     client_phone: str | None = None,
     confirmation_code: str | None = None,
     barber_dict: dict | None = None,
     client_ip: str | None = None,
 ) -> dict:
-    """
-    Reschedules an existing appointment (Option B: update in place).
-
-    Customer path  : requires client_phone + confirmation_code
-    Barber path    : requires barber_dict (from token)
-
-    Rules enforced:
-      - Appointment must be 'scheduled' (not completed or cancelled)
-      - New slot must be within barber's working hours
-      - New slot must not conflict with existing booking
-      - Max _MAX_RESCHEDULES reschedules per appointment
-      - Cannot reschedule to same date+time (no-op guard)
-      - Full audit log of before/after
-    """
-
-    # ── 1. Fetch and verify ownership ───────────────────────────────
+    phone_hash = None
     try:
         if actor_type == "customer":
+            phone_hash = blind_index(client_phone)
             existing = (
                 supabase.table("appointments")
                 .select("*")
                 .eq("id", appointment_id)
-                .eq("client_phone", client_phone)
+                .eq("client_phone_hash", phone_hash)
                 .eq("confirmation_code", confirmation_code.strip().upper())
                 .maybe_single()
                 .execute()
@@ -654,14 +645,12 @@ def reschedule_appointment(
 
     appt = existing.data
 
-    # ── 2. Status must be 'scheduled' ───────────────────────────────
     if appt["status"] != "scheduled":
         raise ConflictError(
             f"Only scheduled appointments can be rescheduled. "
             f"Current status: '{appt['status']}'."
         )
 
-    # ── 3. Anti-abuse: max reschedules ──────────────────────────────
     reschedule_count = appt.get("reschedule_count") or 0
     if reschedule_count >= _MAX_RESCHEDULES:
         raise ConflictError(
@@ -671,16 +660,13 @@ def reschedule_appointment(
             "Please cancel and create a new booking."
         )
 
-    # ── 4. No-op guard ──────────────────────────────────────────────
     current_date = str(appt["date"])
     current_time = str(appt["time"])[:5]
     if str(new_date) == current_date and new_time_str[:5] == current_time:
         raise ConflictError("The new date and time are the same as the current booking.")
 
-    # ── 5. Validate new slot within barber's schedule ───────────────
     _check_slot_within_schedule(appt["barber_id"], new_date, new_time_str)
 
-    # ── 6. Check new slot is not already taken ──────────────────────
     try:
         conflict = (
             supabase.table("appointments")
@@ -689,7 +675,7 @@ def reschedule_appointment(
             .eq("date", str(new_date))
             .eq("time", new_time_str)
             .neq("status", "cancelled")
-            .neq("id", appointment_id)   # exclude self
+            .neq("id", appointment_id)
             .maybe_single()
             .execute()
         )
@@ -700,7 +686,6 @@ def reschedule_appointment(
     if conflict and conflict.data:
         raise SlotUnavailableError()
 
-    # ── 7. Update in place ──────────────────────────────────────────
     try:
         result = (
             supabase.table("appointments")
@@ -717,10 +702,14 @@ def reschedule_appointment(
 
         updated = result.data[0]
 
-        # ── 8. Audit log ─────────────────────────────────────────────
+        # Never write a raw phone number into the audit log's actor_id —
+        # use the blind index, which is what the customer path already
+        # computed above. The barber path's actor_id (a UUID) is fine as-is.
+        log_actor_id = phone_hash if actor_type == "customer" else actor_id
+
         log_appointment_event(
             appointment_id=appointment_id,
-            actor_id=actor_id,
+            actor_id=log_actor_id,
             actor_type=actor_type,
             action="rescheduled",
             before_status=appt["status"],
@@ -739,7 +728,7 @@ def reschedule_appointment(
             reschedule_count + 1,
         )
 
-        return updated
+        return _decrypt_appointment_row(updated)
 
     except HTTPException:
         raise
