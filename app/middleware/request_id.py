@@ -1,5 +1,5 @@
 """
-Injeta um ID único em cada requisição para rastreabilidade nos logs.
+Injects a unique ID into each request for traceability in the logs.
 """
 
 import uuid
