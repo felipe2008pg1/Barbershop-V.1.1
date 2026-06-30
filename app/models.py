@@ -6,6 +6,8 @@ from datetime import date, time, date as date_cls
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.security.password_policy import validate_password
+
 
 def _validate_brazilian_phone(value: str) -> str:
     """
@@ -49,7 +51,7 @@ class BarberCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     email: EmailStr
     phone: Optional[str] = None
-    password: str = Field(min_length=6, max_length=72)
+    password: str = Field(min_length=12, max_length=72)
 
     @field_validator("phone")
     @classmethod
@@ -57,6 +59,20 @@ class BarberCreate(BaseModel):
         if value is None or value == "":
             return value
         return _validate_brazilian_phone(value)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_policy(cls, value, info):
+        email = info.data.get("email", "")
+        # raises HTTPException(400) on failure — propagates through FastAPI's
+        # validation layer fine since pydantic wraps it, but we want our own
+        # message shape, so re-raise as ValueError for pydantic's error format.
+        try:
+            validate_password(value, str(email) if email else "")
+        except Exception as exc:
+            detail = getattr(exc, "detail", str(exc))
+            raise ValueError(detail)
+        return value
 
 
 class BarberUpdate(BaseModel):
@@ -76,6 +92,20 @@ class BarberUpdate(BaseModel):
 class BarberLogin(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
+
+
+class MFAEnrollVerify(BaseModel):
+    factor_id: str = Field(min_length=1)
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class MFALoginVerify(BaseModel):
+    factor_id: str = Field(min_length=1)
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class MFAUnenroll(BaseModel):
+    factor_id: str = Field(min_length=1)
 
 
 # ---------- Barber schedule (weekly working hours) ----------
