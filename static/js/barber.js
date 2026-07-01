@@ -108,19 +108,19 @@ function renderMyAppointments(appointments) {
           ${isNext?`<small style="color:var(--ledger);font-size:10px;">${t("label_next_client")}</small>`:""}
         </div>
         <div class="ficha-info">
-          <strong>${a.client_name}</strong>
-          <span>${serviceName}</span>
+          <strong>${esc(a.client_name)}</strong>
+          <span>${esc(serviceName)}</span>
           <div class="ficha-meta">
-            <span>📞 ${a.client_phone}</span>
-            ${a.client_email?`<span>✉️ ${a.client_email}</span>`:""}
+            <span>📞 ${esc(a.client_phone)}</span>
+            ${a.client_email?`<span>✉️ ${esc(a.client_email)}</span>`:""}
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;">
             <span class="status-tag ${statusClass}">${statusLabel}</span>
             ${delayBadge}
           </div>
-          ${a.notes&&!a.notes.startsWith("[ip:")?`<div style="margin-top:6px;font-size:13px;color:var(--ink-soft);">📝 ${a.notes}</div>`:""}
+          ${a.notes&&!a.notes.startsWith("[ip:")?`<div style="margin-top:6px;font-size:13px;color:var(--ink-soft);">📝 ${esc(a.notes)}</div>`:""}
           <div class="notes-form" id="notes-form-${a.id}" style="margin-top:8px;display:none;">
-            <textarea id="notes-input-${a.id}" placeholder="${t("placeholder_notes")}" style="width:100%;min-height:60px;font-size:13px;padding:6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--ink);resize:vertical;">${a.notes&&!a.notes.startsWith("[ip:")?a.notes:""}</textarea>
+            <textarea id="notes-input-${a.id}" placeholder="${t("placeholder_notes")}" style="width:100%;min-height:60px;font-size:13px;padding:6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);color:var(--ink);resize:vertical;">${a.notes&&!a.notes.startsWith("[ip:")?esc(a.notes):""}</textarea>
             <div style="display:flex;gap:6px;margin-top:6px;">
               <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="saveNotes('${a.id}')">${t("btn_save_notes")}</button>
               <button class="btn-secondary" style="font-size:12px;padding:4px 10px;" onclick="toggleNotes('${a.id}',false)">✕</button>
@@ -314,7 +314,7 @@ function renderTimeOff(items) {
       <div class="list-row-info">
         <strong>${formatDate(item.date)}</strong>
         <span>${item.start_time?`${item.start_time.slice(0,5)} - ${item.end_time.slice(0,5)}`:t("agenda_empty_for_date")}</span>
-        ${item.reason?`<span>${item.reason}</span>`:""}
+        ${item.reason?`<span>${esc(item.reason)}</span>`:""}
       </div>
       <div class="list-row-actions">
         <button class="btn-icon del" onclick="deleteTimeOff('${item.id}')">
