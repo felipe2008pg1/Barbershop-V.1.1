@@ -2,11 +2,11 @@ name: Supabase Backup
 
 on:
   schedule:
-    - cron: '0 3 * * 0'   # toda domingo, 03:00 UTC
-  workflow_dispatch: {}    # permite rodar manualmente em Actions > Run workflow
+    - cron: '0 3 * * 0'   # Every Sunday, 03:00 UTC
+  workflow_dispatch: {}    # allows you to run manually in Actions > Run workflow
 
 permissions:
-  contents: write   # necessário só para criar a Release; nada além disso
+  contents: write   # necessary only to create the Release; nothing more than that
 
 concurrency:
   group: supabase-backup
@@ -16,7 +16,7 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     container:
-      image: postgres:17-alpine   # traz pg_dump pronto; precisa ser >= versão do servidor Supabase
+      image: postgres:17-alpine   # includes pg_dump; must be >= the Supabase server version
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
@@ -24,18 +24,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validar secrets presentes
+      - name: Validate existing secrets
         run: |
           if [ -z "$SUPABASE_DB_URL" ] || [ -z "$GPG_PASSPHRASE" ]; then
             echo "::error::Secrets SUPABASE_DB_URL e/ou BACKUP_GPG_PASSPHRASE não configurados."
             exit 1
           fi
 
-      - name: Instalar gnupg, bash e GitHub CLI
+      - name: Install gnupg, bash and GitHub CLI
         run: |
           apk add --no-cache gnupg bash github-cli
 
-      - name: Gerar dump (sem expor connection string nos logs)
+      - name: To generate dump (without exposing the connection string in the logs)
         run: |
           set -euo pipefail
           STAMP=$(date -u +%Y%m%d_%H%M%S)
@@ -46,13 +46,13 @@ jobs:
         env:
           PGCONNECT_TIMEOUT: 15
 
-      - name: Mostrar erro genérico em caso de falha (sem vazar a connection string)
+      - name: Display a generic error in case of failure (without leaking the connection string)
         if: failure()
         run: |
           echo "Falha no pg_dump. Verifique credenciais e conectividade."
           grep -v -i "postgresql://" dump_error.log || true
 
-      - name: Criptografar dump (AES-256, simétrico)
+      - name: Encrypt dump (AES-256, simétrico)
         run: |
           gpg --batch --yes --passphrase "$GPG_PASSPHRASE" \
               --symmetric --cipher-algo AES256 \
@@ -60,7 +60,7 @@ jobs:
               "backup_${STAMP}.sql"
           shred -u "backup_${STAMP}.sql"   # remove o .sql em texto plano do runner
 
-      - name: Publicar como Release no repositório PRIVADO de backups
+      - name: Publish as a Release to the private backup repository.
         run: |
           gh release create "backup-${STAMP}" \
             "backup_${STAMP}.sql.gpg" \
@@ -71,7 +71,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
 
-      - name: Limpar backups antigos (mantém os últimos 8)
+      - name: Clean up old backups (keep the last 8)
         shell: bash
         run: |
           set -euo pipefail
