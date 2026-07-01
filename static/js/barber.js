@@ -1,10 +1,6 @@
 const WEEKDAYS = [0,1,2,3,4,5,6];
 let CURRENT_BARBER_TAB = "appointments";
 
-function getToken() { return localStorage.getItem("barbershop_barber_token"); }
-function setToken(t) { localStorage.setItem("barbershop_barber_token", t); }
-function clearToken() { localStorage.removeItem("barbershop_barber_token"); }
-
 function showMsg(id, text, type) {
   const el=document.getElementById(id);
   el.textContent=text; el.className="msg "+type; el.style.display="block";
@@ -13,8 +9,12 @@ function showMsg(id, text, type) {
 function formatDate(d) { const [y,m,dd]=d.split("-"); return `${dd}/${m}/${y}`; }
 
 async function authFetch(url, options={}) {
-  const headers={...(options.headers||{}), Authorization:`Bearer ${getToken()}`};
-  const res=await fetch(url,{...options,headers});
+  // Session lives in the HttpOnly cookie set at /login — the browser
+  // attaches it automatically on same-origin requests. No token is
+  // read from or written to client-side storage, so there is nothing
+  // for an XSS payload to steal even if output-encoding were ever
+  // bypassed elsewhere.
+  const res=await fetch(url,{...options, credentials:"same-origin"});
   if(res.status===401||res.status===403){logout();throw new Error("Session expired");}
   return res;
 }
@@ -40,12 +40,24 @@ async function login() {
   const res=await fetch(API_BASE+"/api/barber/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
   if(!res.ok){showMsg("msg-login",t("msg_login_error"),"erro");return;}
   const data=await res.json();
-  setToken(data.access_token);
+  if(data.mfa_required){
+    // MFA step-up pending: backend already set the short-lived pending
+    // cookie. Frontend UI for the 6-digit code challenge is not wired
+    // up yet — tracked separately.
+    showMsg("msg-login",t("msg_mfa_pending")||"MFA required.","erro");
+    return;
+  }
   enterDashboard();
 }
 
-function logout() {
-  clearToken();
+async function logout() {
+  try {
+    await fetch(API_BASE+"/api/barber/logout", {method:"POST", credentials:"same-origin"});
+  } catch(e) {
+    // Best-effort: even if this call fails (network issue, already
+    // expired session), still reset the UI below so the user isn't
+    // stuck on a dashboard that no longer has a valid session.
+  }
   document.getElementById("barber-nav").style.display="none";
   document.getElementById("login-actions").style.display="flex";
   document.querySelectorAll(".aba").forEach(el=>el.classList.remove("ativa"));
@@ -359,6 +371,9 @@ document.addEventListener("langchange",()=>{
   }
 });
 
-document.addEventListener("DOMContentLoaded",()=>{
-  if(getToken()) enterDashboard();
+document.addEventListener("DOMContentLoaded",async()=>{
+  try {
+    const res=await fetch(API_BASE+"/api/barber/me",{credentials:"same-origin"});
+    if(res.ok) enterDashboard();
+  } catch(e) { /* no valid session cookie — stay on login screen */ }
 });
