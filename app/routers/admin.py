@@ -6,9 +6,8 @@ the list of services/prices, and to view revenue/performance reports.
 import logging
 from collections import defaultdict
 from datetime import date, timedelta
-from datetime import date as date_type
-import uuid as _uuid_mod
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 
@@ -337,17 +336,11 @@ def get_dashboard(
 
 @router.get("/appointments")
 def list_appointments(
-    date: Optional[date_type] = Query(default=None),
-    barber_id: Optional[str] = Query(default=None),
+    date: Optional[date] = Query(default=None),
+    barber_id: Optional[UUID] = Query(default=None),
     status: Optional[str] = Query(default=None),
 ):
     """Lists all appointments with optional filters."""
-    if barber_id:
-        try:
-            _uuid_mod.UUID(barber_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid barber_id format.")
-
     if status and status not in {"scheduled", "completed", "cancelled"}:
         raise HTTPException(status_code=400, detail="Invalid status filter.")
 
@@ -359,9 +352,9 @@ def list_appointments(
             .order("time")
         )
         if date:
-            query = query.eq("date", str(date))
+            query = query.eq("date", date.isoformat())
         if barber_id:
-            query = query.eq("barber_id", barber_id)
+            query = query.eq("barber_id", str(barber_id))
         if status:
             query = query.eq("status", status)
 
