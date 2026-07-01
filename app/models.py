@@ -4,9 +4,24 @@ Pydantic models: validate the shape of data going in and out of the API.
 import re
 from datetime import date, time, date as date_cls
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.security.password_policy import validate_password
+
+
+class _StrictModel(BaseModel):
+    """
+    Base for every request model in this file.
+
+    extra="forbid" rejects any field the client sends that isn't part of
+    the schema (HTTP 422) instead of Pydantic v2's default of silently
+    dropping it. This is the actual defense against mass assignment: a
+    client can never smuggle in `status`, `active`, `barber_id`, etc. by
+    guessing a column name — the request is rejected outright rather than
+    quietly ignored, which also surfaces client bugs and probing attempts
+    in the logs instead of hiding them.
+    """
+    model_config = ConfigDict(extra="forbid")
 
 
 def _validate_brazilian_phone(value: str) -> str:
@@ -32,13 +47,13 @@ def _validate_not_in_past(value: date_cls) -> date_cls:
 
 # ---------- Services ----------
 
-class ServiceCreate(BaseModel):
+class ServiceCreate(_StrictModel):
     name: str = Field(min_length=1, max_length=120)
     duration_minutes: int = Field(gt=0, le=480, default=30)
     price: float = Field(ge=0, le=100000, default=0)
 
 
-class ServiceUpdate(BaseModel):
+class ServiceUpdate(_StrictModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=120)
     duration_minutes: Optional[int] = Field(default=None, gt=0, le=480)
     price: Optional[float] = Field(default=None, ge=0, le=100000)
@@ -47,7 +62,7 @@ class ServiceUpdate(BaseModel):
 
 # ---------- Barbers ----------
 
-class BarberCreate(BaseModel):
+class BarberCreate(_StrictModel):
     name: str = Field(min_length=1, max_length=120)
     email: EmailStr
     phone: Optional[str] = None
@@ -75,7 +90,7 @@ class BarberCreate(BaseModel):
         return value
 
 
-class BarberUpdate(BaseModel):
+class BarberUpdate(_StrictModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=120)
     phone: Optional[str] = None
     photo_url: Optional[str] = None
@@ -89,28 +104,28 @@ class BarberUpdate(BaseModel):
         return _validate_brazilian_phone(value)
 
 
-class BarberLogin(BaseModel):
+class BarberLogin(_StrictModel):
     email: EmailStr
     password: str = Field(min_length=1)
 
 
-class MFAEnrollVerify(BaseModel):
+class MFAEnrollVerify(_StrictModel):
     factor_id: str = Field(min_length=1)
     code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
-class MFALoginVerify(BaseModel):
+class MFALoginVerify(_StrictModel):
     factor_id: str = Field(min_length=1)
     code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
-class MFAUnenroll(BaseModel):
+class MFAUnenroll(_StrictModel):
     factor_id: str = Field(min_length=1)
 
 
 # ---------- Barber schedule (weekly working hours) ----------
 
-class ScheduleSlot(BaseModel):
+class ScheduleSlot(_StrictModel):
     weekday: int = Field(ge=0, le=6)  # 0 = Sunday ... 6 = Saturday
     start_time: time
     end_time: time
@@ -127,7 +142,7 @@ class ScheduleSlot(BaseModel):
 
 # ---------- Time off (one-off blocks) ----------
 
-class TimeOffCreate(BaseModel):
+class TimeOffCreate(_StrictModel):
     date: date
     start_time: Optional[time] = None
     end_time: Optional[time] = None
@@ -149,7 +164,7 @@ class TimeOffCreate(BaseModel):
 
 # ---------- Appointments ----------
 
-class AppointmentCreate(BaseModel):
+class AppointmentCreate(_StrictModel):
     barber_id: str
     service_id: str
     client_name: str = Field(min_length=1, max_length=120)
@@ -170,7 +185,7 @@ class AppointmentCreate(BaseModel):
         return _validate_not_in_past(value)
 
 
-class AppointmentUpdate(BaseModel):
+class AppointmentUpdate(_StrictModel):
     service_id: Optional[str] = None
     client_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
     client_phone: Optional[str] = None
@@ -198,7 +213,7 @@ class AppointmentUpdate(BaseModel):
         return value
 
 
-class AppointmentLookup(BaseModel):
+class AppointmentLookup(_StrictModel):
     client_phone: str
     confirmation_code: str = Field(min_length=4, max_length=4)
 
@@ -207,12 +222,12 @@ class AppointmentLookup(BaseModel):
     def validate_phone(cls, value):
         return _validate_brazilian_phone(value)
 
-class DashboardQuery(BaseModel):
+class DashboardQuery(_StrictModel):
     """Optional date range filter for the admin dashboard report."""
     start_date: Optional[date] = None
     end_date: Optional[date] = None
 
-class AppointmentReschedule(BaseModel):
+class AppointmentReschedule(_StrictModel):
     date: date
     time: time
 
