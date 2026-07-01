@@ -2,8 +2,8 @@
 Barber area routes (requires login via Supabase Auth).
 """
 import logging
-from typing import Optional
 from datetime import date as date_type
+from typing import Optional
 from fastapi import APIRouter, Cookie, HTTPException, Depends, Query, Request, Response
 from app.service_translations import translate_service_name
 from app.config import supabase, ENVIRONMENT
@@ -13,10 +13,10 @@ from app.models import (
     ScheduleSlot,
     TimeOffCreate,
     BarberLogin,
-    ChangePasswordRequest,
     MFAEnrollVerify,
     MFALoginVerify,
     MFAUnenroll,
+    ChangePasswordRequest,
 )
 from app.rate_limit import limiter
 from app.security.login_guard import login_guard
@@ -344,10 +344,12 @@ def change_password(
     Enforces the password policy (including the email-substring rule)
     before calling Supabase.
     """
-    validate_password(body.new_password, barber.get("email", ""))
+    new_password = body.new_password
+
+    validate_password(new_password, barber.get("email", ""))
 
     try:
-        supabase.auth.update_user({"password": body.new_password})
+        supabase.auth.update_user({"password": new_password})
     except Exception:
         logger.exception("Failed to change password for barber %s", barber.get("id"))
         raise HTTPException(status_code=503, detail="Could not change password right now.")
@@ -383,7 +385,7 @@ def list_my_appointments(
             .eq("barber_id", barber["id"])
         )
         if date:
-            query = query.eq("date", date)
+            query = query.eq("date", date.isoformat())
         if status:
             query = query.eq("status", status)
 
