@@ -187,17 +187,40 @@ def _security_headers() -> dict[str, str]:
         "X-Frame-Options": "DENY",
         "X-XSS-Protection": "1; mode=block",
         "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+        "Permissions-Policy": (
+            "geolocation=(), microphone=(), camera=(), payment=(), usb=(), "
+            "magnetometer=(), gyroscope=(), accelerometer=(), midi=(), "
+            "interest-cohort=(), browsing-topics=()"
+        ),
         "Content-Security-Policy": (
             "default-src 'self'; "
+            # No inline <script> tags exist anywhere in the templates — every
+            # script is loaded from /static/js via <script src>. 'unsafe-inline'
+            # here is required only because the UI uses onclick="..." attribute
+            # handlers extensively (both static in the templates and generated
+            # dynamically by admin.js/barber.js/public.js). Removing it would
+            # break every button in the app. Migrating to addEventListener +
+            # nonces is the long-term fix, not a "quick win".
             "script-src 'self' 'unsafe-inline'; "
+            # Same reasoning for style="..." attributes, used throughout the
+            # templates and the JS-rendered HTML fragments.
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
+            # Nothing in the app currently loads images from arbitrary https
+            # hosts (barber photo_url exists in the schema but isn't rendered
+            # anywhere yet) — scoped to self + data: URIs only. If external
+            # barber photos are added later, this needs an explicit host.
+            "img-src 'self' data:; "
             "font-src 'self'; "
             "connect-src 'self'; "
-            "frame-ancestors 'none';"
+            "frame-ancestors 'none'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "upgrade-insecure-requests;"
         ),
         "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Resource-Policy": "same-origin",
         "Cache-Control": "no-store",
     }
 
