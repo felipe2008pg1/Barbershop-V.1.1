@@ -122,7 +122,7 @@ function renderBookingConfirmation(clientName,time,confirmationCode) {
   box.dataset.cachedCode=confirmationCode;
   box.innerHTML=`
     <div class="msg sucesso" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-      <span>${t("msg_booking_confirmed")} ${clientName} — ${time}</span>
+      <span>${t("msg_booking_confirmed")} ${esc(clientName)} — ${esc(time)}</span>
       <span class="confirmation-code" style="margin:0;">
         <span class="code-label">${t("label_your_code")}</span>
         <span class="code-value">${confirmationCode}</span>
@@ -173,9 +173,9 @@ function renderLookupResult(a) {
         <small>${formatDate(a.date)}</small>
       </div>
       <div class="ficha-info">
-        <strong>${serviceName}</strong>
-        <span>${t("with_barber")} ${barberName}</span>
-        <div class="ficha-meta"><span>📞 ${a.client_phone}</span></div>
+        <strong>${esc(serviceName)}</strong>
+        <span>${t("with_barber")} ${esc(barberName)}</span>
+        <div class="ficha-meta"><span>📞 ${esc(a.client_phone)}</span></div>
         <span class="status-tag ${statusClass}" style="margin-top:8px;">${statusLabel}</span>
         ${rescheduleCount>0?`<span style="font-size:12px;color:var(--ink-soft);margin-top:4px;">${t("reschedule_count_label")}: ${rescheduleCount}/3</span>`:""}
       </div>
