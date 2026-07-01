@@ -143,12 +143,12 @@ function renderMainDashboard(data) {
   if(data.total_completed===0){content.innerHTML=summaryHtml+`<p class="vazio">${t("dashboard_no_data")}</p>`;return;}
   const barberRows=data.revenue_by_barber.map(r=>`
     <div class="list-row">
-      <div class="list-row-info"><strong>${r.barber_name}</strong><span>${r.count} ${t("dashboard_appointments_count")}</span></div>
+      <div class="list-row-info"><strong>${esc(r.barber_name)}</strong><span>${r.count} ${t("dashboard_appointments_count")}</span></div>
       <strong style="font-family:var(--font-display);font-size:16px;">${formatCurrency(r.revenue)}</strong>
     </div>`).join("");
   const serviceRows=data.revenue_by_service.map(r=>`
     <div class="list-row">
-      <div class="list-row-info"><strong>${r.service_name}</strong><span>${r.count} ${t("dashboard_appointments_count")}</span></div>
+      <div class="list-row-info"><strong>${esc(r.service_name)}</strong><span>${r.count} ${t("dashboard_appointments_count")}</span></div>
       <strong style="font-family:var(--font-display);font-size:16px;">${formatCurrency(r.revenue)}</strong>
     </div>`).join("");
   content.innerHTML=`
@@ -169,7 +169,7 @@ function renderClientRanking(clients) {
     ${clients.slice(0,10).map((c,i)=>`
       <div class="list-row">
         <div class="list-row-info">
-          <strong>#${i+1} ${c.client_name}</strong>
+          <strong>#${i+1} ${esc(c.client_name)}</strong>
           <span>${c.visits} ${t("dashboard_clients_visits")} · ${formatCurrency(c.total_spent)} ${t("dashboard_clients_spent")}</span>
         </div>
       </div>`).join("")}`;
@@ -256,9 +256,9 @@ function renderAdminAppointments(appointments) {
       <div class="ficha">
         <div class="ficha-numero">${a.time.slice(0,5)}<small>${formatDate(a.date)}</small></div>
         <div class="ficha-info">
-          <strong>${a.client_name}</strong>
-          <span>${serviceName} · ${barberName}</span>
-          <div class="ficha-meta"><span>📞 ${a.client_phone}</span></div>
+          <strong>${esc(a.client_name)}</strong>
+          <span>${esc(serviceName)} · ${esc(barberName)}</span>
+          <div class="ficha-meta"><span>📞 ${esc(a.client_phone)}</span></div>
           <span class="status-tag ${statusClass}" style="margin-top:6px;">${statusLabel}</span>
         </div>
       </div>`;
@@ -279,8 +279,8 @@ function renderBarbers(barbers) {
     return `
       <div class="list-row" id="barber-${b.id}">
         <div class="list-row-info">
-          <strong>${b.name}</strong>
-          <span>${b.email}${b.phone?" — "+b.phone:""}</span>
+          <strong>${esc(b.name)}</strong>
+          <span>${esc(b.email)}${b.phone?" — "+esc(b.phone):""}</span>
           <span class="status-tag ${sc}" style="margin-top:6px;">${sl}</span>
         </div>
         <div class="list-row-actions">
@@ -328,7 +328,7 @@ function renderServices(services) {
     return `
       <div class="list-row" id="service-${s.id}">
         <div class="list-row-info">
-          <strong>${s.name}</strong>
+          <strong>${esc(s.name)}</strong>
           <span>${formatCurrency(s.price)} — ${s.duration_minutes} min</span>
           <span class="status-tag ${sc}" style="margin-top:6px;">${sl}</span>
         </div>
