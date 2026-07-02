@@ -83,6 +83,7 @@ async function bookAppointment() {
   const service_id=document.getElementById("service_id").value;
   const date=document.getElementById("date").value;
   const time=document.getElementById("time").value;
+  const consent_accepted=document.getElementById("consent_accepted").checked;
 
   document.getElementById("confirmation-box").style.display="none";
   document.getElementById("confirmation-box").innerHTML="";
@@ -90,8 +91,11 @@ async function bookAppointment() {
   if(!client_name||!client_phone||!barber_id||!service_id||!date||!time){
     showMsg("msg-form",t("msg_fill_required"),"erro"); return;
   }
+  if(!consent_accepted){
+    showMsg("msg-form",t("msg_consent_required")||"Você precisa aceitar a Política de Privacidade para agendar.","erro"); return;
+  }
 
-  const payload={client_name,client_phone,barber_id,service_id,date,time};
+  const payload={client_name,client_phone,barber_id,service_id,date,time,consent_accepted};
   if(client_email) payload.client_email=client_email;
 
   const res=await fetch(API_BASE+"/api/public/appointments",{
@@ -107,6 +111,7 @@ async function bookAppointment() {
     document.getElementById("client_phone").value="";
     document.getElementById("client_email").value="";
     document.getElementById("date").value="";
+    document.getElementById("consent_accepted").checked=false;
     await updateAvailableTimes();
   } else {
     const err=await res.json();
