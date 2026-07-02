@@ -117,6 +117,11 @@ async def index(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 
+@app.get("/privacidade", response_class=HTMLResponse)
+async def privacy_policy(request: Request):
+    return templates.TemplateResponse(request, "privacy.html")
+
+
 @app.get("/barber-area", response_class=HTMLResponse)
 async def barber_area(request: Request):
     return templates.TemplateResponse(request, "barber.html")
