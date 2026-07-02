@@ -181,6 +181,7 @@ class AppointmentCreate(_StrictModel):
     date: date
     time: time
     notes: Optional[str] = Field(default=None, max_length=500)
+    consent_accepted: bool
 
     @field_validator("client_phone")
     @classmethod
@@ -191,6 +192,17 @@ class AppointmentCreate(_StrictModel):
     @classmethod
     def date_not_in_past(cls, value):
         return _validate_not_in_past(value)
+
+    @field_validator("consent_accepted")
+    @classmethod
+    def consent_must_be_true(cls, value):
+        # Enforced server-side on purpose: a client-side-only checkbox can
+        # be bypassed by anyone calling the API directly (curl, Postman,
+        # a modified page). This is what actually makes the consent record
+        # meaningful instead of decorative.
+        if value is not True:
+            raise ValueError("You must accept the privacy policy to book an appointment.")
+        return value
 
 
 class AppointmentUpdate(_StrictModel):
