@@ -204,13 +204,13 @@ def _security_headers() -> dict[str, str]:
             "script-src 'self' 'unsafe-inline'; "
             # Same reasoning for style="..." attributes, used throughout the
             # templates and the JS-rendered HTML fragments.
-            "style-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             # Nothing in the app currently loads images from arbitrary https
             # hosts (barber photo_url exists in the schema but isn't rendered
             # anywhere yet) — scoped to self + data: URIs only. If external
             # barber photos are added later, this needs an explicit host.
             "img-src 'self' data:; "
-            "font-src 'self'; "
+            "font-src 'self' https://fonts.gstatic.com; "
             "connect-src 'self'; "
             "frame-ancestors 'none'; "
             "object-src 'none'; "
