@@ -6,8 +6,15 @@
   <title>Política de Privacidade — BarberShop</title>
   <link rel="stylesheet" href="/static/css/style.css" />
   <link rel="icon" type="image/x-icon" href="/static/favicon/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/static/favicon/favicon-48x48.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon/android-chrome-192x192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon/android-chrome-512x512.png" />
 </head>
 <body>
+
   <header>
     <div class="header-inner">
       <div class="logo">
@@ -16,85 +23,90 @@
           <path d="M6 21l6-6 6 6"/>
           <line x1="12" y1="9" x2="12" y2="15"/>
         </svg>
-        <span>BarberShop</span>
+        <span data-i18n="brand_name">BarberShop</span>
       </div>
       <nav>
-        <a href="/" class="nav-btn"><span>&larr; Voltar</span></a>
+        <a href="/" class="nav-btn" style="text-decoration:none;"><span data-i18n="privacy_back">Voltar</span></a>
+        <button class="theme-btn" onclick="toggleTheme()" title="Modo claro/escuro">
+          <span data-theme-icon></span>
+        </button>
+        <button class="lang-btn" onclick="toggleLang()" title="Mudar idioma / Change language">
+          <span data-i18n-toggle-label>EN</span>
+        </button>
       </nav>
     </div>
   </header>
 
   <main style="max-width:720px;margin:0 auto;padding:32px 20px;line-height:1.7;">
-    <h1 style="font-family:var(--font-display);">Política de Privacidade</h1>
-    <p style="color:var(--ink-soft);font-size:14px;">Última atualização: 02/07/2026</p>
+    <h1 style="font-family:var(--font-display);" data-i18n="privacy_title">Política de Privacidade</h1>
+    <p style="color:var(--ink-soft);font-size:14px;" data-i18n="privacy_updated">Última atualização: 02/07/2026</p>
 
-    <p>
+    <p data-i18n="privacy_intro">
       Esta política explica quais dados coletamos quando você agenda um horário
       conosco, para que servem, como são protegidos e como você pode exercer
       seus direitos sobre eles, em conformidade com a Lei Geral de Proteção de
       Dados (LGPD — Lei nº 13.709/2018).
     </p>
 
-    <h2>1. Quais dados coletamos</h2>
-    <p>Ao fazer um agendamento, coletamos:</p>
+    <h2 data-i18n="privacy_s1_title">1. Quais dados coletamos</h2>
+    <p data-i18n="privacy_s1_intro">Ao fazer um agendamento, coletamos:</p>
     <ul>
-      <li>Nome</li>
-      <li>Telefone</li>
-      <li>E-mail (opcional, se você informar)</li>
-      <li>Data, horário e serviço escolhido</li>
-      <li>Observações que você inserir no agendamento (opcional)</li>
+      <li data-i18n="privacy_s1_li1">Nome</li>
+      <li data-i18n="privacy_s1_li2">Telefone</li>
+      <li data-i18n="privacy_s1_li3">E-mail (opcional, se você informar)</li>
+      <li data-i18n="privacy_s1_li4">Data, horário e serviço escolhido</li>
+      <li data-i18n="privacy_s1_li5">Observações que você inserir no agendamento (opcional)</li>
     </ul>
 
-    <h2>2. Para que usamos esses dados</h2>
+    <h2 data-i18n="privacy_s2_title">2. Para que usamos esses dados</h2>
     <ul>
-      <li>Confirmar e gerenciar seu agendamento</li>
-      <li>Entrar em contato caso haja necessidade de remarcar ou cancelar</li>
-      <li>Consultar seu histórico caso você retorne para um novo agendamento</li>
+      <li data-i18n="privacy_s2_li1">Confirmar e gerenciar seu agendamento</li>
+      <li data-i18n="privacy_s2_li2">Entrar em contato caso haja necessidade de remarcar ou cancelar</li>
+      <li data-i18n="privacy_s2_li3">Consultar seu histórico caso você retorne para um novo agendamento</li>
     </ul>
-    <p>Não usamos seus dados para envio de propaganda sem seu consentimento, nem os vendemos a terceiros.</p>
+    <p data-i18n="privacy_s2_note">Não usamos seus dados para envio de propaganda sem seu consentimento, nem os vendemos a terceiros.</p>
 
-    <h2>3. Como protegemos seus dados</h2>
-    <p>
+    <h2 data-i18n="privacy_s3_title">3. Como protegemos seus dados</h2>
+    <p data-i18n="privacy_s3_text">
       Seu telefone e e-mail são armazenados de forma criptografada em nosso
       banco de dados. O acesso a essas informações é restrito à equipe
       responsável pelo atendimento.
     </p>
 
-    <h2>4. Por quanto tempo guardamos</h2>
-    <p>
+    <h2 data-i18n="privacy_s4_title">4. Por quanto tempo guardamos</h2>
+    <p data-i18n="privacy_s4_text">
       Mantemos os dados do agendamento pelo tempo necessário para a prestação
       do serviço e para fins de histórico de atendimento, podendo ser
-      removidos a qualquer momento mediante sua solicitação (ver seção 6).
+      removidos a qualquer momento mediante sua solicitação (veja a seção 6).
     </p>
 
-    <h2>5. Compartilhamento com terceiros</h2>
-    <p>
+    <h2 data-i18n="privacy_s5_title">5. Compartilhamento com terceiros</h2>
+    <p data-i18n="privacy_s5_text">
       Seus dados não são compartilhados com terceiros, exceto quando exigido
       por lei ou ordem judicial.
     </p>
 
-    <h2>6. Seus direitos</h2>
-    <p>Conforme a LGPD, você pode a qualquer momento solicitar:</p>
+    <h2 data-i18n="privacy_s6_title">6. Seus direitos</h2>
+    <p data-i18n="privacy_s6_intro">Conforme a LGPD, você pode a qualquer momento solicitar:</p>
     <ul>
-      <li>Confirmação de que tratamos seus dados</li>
-      <li>Acesso aos dados que temos sobre você</li>
-      <li>Correção de dados incompletos ou desatualizados</li>
-      <li>Exclusão dos seus dados</li>
+      <li data-i18n="privacy_s6_li1">Confirmação de que tratamos seus dados</li>
+      <li data-i18n="privacy_s6_li2">Acesso aos dados que temos sobre você</li>
+      <li data-i18n="privacy_s6_li3">Correção de dados incompletos ou desatualizados</li>
+      <li data-i18n="privacy_s6_li4">Exclusão dos seus dados</li>
     </ul>
-    <p>
-      Para exercer qualquer um desses direitos, entre em contato pelo
-      telefone/e-mail informado no rodapé deste site.
-    </p>
+    <p data-i18n="privacy_s6_note">Para exercer qualquer um desses direitos, entre em contato pelos canais abaixo.</p>
 
-    <h2>7. Contato</h2>
-    <p>
-      Em caso de dúvidas sobre esta política ou sobre o tratamento dos seus
-      dados, entre em contato com:</li>
-      <li>+55 48 99150-0921<li>
-      <li>felipedelavega08@gmail.com<li>
-      <li>/WhatsApp: 48991500921 <li>
+    <h2 data-i18n="privacy_s7_title">7. Contato</h2>
+    <p data-i18n="privacy_s7_text">Em caso de dúvidas sobre esta política ou sobre o tratamento dos seus dados, entre em contato:</p>
+    <ul>
+      <li>Email: <a href="mailto:felipedelavega08@gmail.com">felipedelavega08@gmail.com</a></li>
+      <li>Telefone: <a href="tel:+5548991500921">+55 48 99150-0921</a></li>
+      <li>WhatsApp: <a href="https://wa.me/5548991500921" target="_blank" rel="noopener noreferrer">+55 48 99150-0921</a></li>
     </ul>
-    </p>
   </main>
+
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/i18n.js"></script>
 </body>
 </html>
