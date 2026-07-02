@@ -19,7 +19,7 @@ import math
 import logging
 import random
 import string
-from datetime import datetime, timedelta, date as date_type
+from datetime import datetime, timedelta, timezone, date as date_type
 from typing import Optional
 from app.services.barber_rate_guard import check_and_record_action
 from fastapi import HTTPException
@@ -332,6 +332,9 @@ def create_appointment(payload: dict, client_ip: str) -> dict:
     phone_enc = encrypt_field(client_phone)
     phone_hash = blind_index(client_phone)
     email_enc = encrypt_field(client_email) if client_email else None
+    # Timestamp generated server-side (not trusted from the client) so the
+    # consent record can't be backdated or forged by whoever calls the API.
+    consent_at = datetime.now(timezone.utc).isoformat()
 
     last_error = None
     for attempt in range(5):
@@ -350,6 +353,8 @@ def create_appointment(payload: dict, client_ip: str) -> dict:
                     "p_time": appt_time,
                     "p_notes": notes_with_ip,
                     "p_confirmation_code": code,
+                    "p_consent_accepted": True,
+                    "p_consent_at": consent_at,
                 },
             ).execute()
 
