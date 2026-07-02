@@ -95,6 +95,15 @@
         <div id="msg-form" class="msg" style="display:none"></div>
         <div id="confirmation-box" style="display:none; margin-bottom: 24px;"></div>
 
+        <div class="form-group" style="display:flex;align-items:flex-start;gap:8px;margin-bottom:16px;">
+          <input type="checkbox" id="consent_accepted" style="margin-top:4px;width:auto;flex-shrink:0;" />
+          <label for="consent_accepted" style="font-size:13px;line-height:1.5;font-weight:400;">
+            <span data-i18n="label_consent_prefix">Li e concordo com a</span>
+            <a href="/privacidade" target="_blank" rel="noopener noreferrer" data-i18n="label_consent_link">Política de Privacidade</a>
+            <span data-i18n="label_consent_suffix">, incluindo o tratamento dos meus dados conforme a LGPD.</span>
+          </label>
+        </div>
+
         <button class="btn-primary" onclick="bookAppointment()" data-i18n="btn_confirm_booking">
           Confirmar agendamento
         </button>
