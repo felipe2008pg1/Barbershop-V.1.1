@@ -102,7 +102,76 @@ Unlike the previous version, this system uses a **real cloud infrastructure**, r
 ## 📂 Project Structure
 
 ```bash
-> UPDATING NOW...
+Barbershop-V.1.1/
+├── .github/
+│   └── workflows/
+│       └── supabase-backup.yml
+├── app/
+│   ├── middleware/
+│   │   ├── cloudflare_origin.py
+│   │   ├── https_cors.py
+│   │   ├── request_id.py
+│   │   ├── security_middleware.py
+│   │   └── __init__.py
+│   ├── routers/
+│   │   ├── admin.py
+│   │   ├── barber.py
+│   │   ├── public.py
+│   │   └── __init__.py
+│   ├── security/
+│   │   ├── crypto.py
+│   │   ├── init.py
+│   │   ├── login_guard.py
+│   │   ├── mfa.py
+│   │   └── password_policy.py
+│   ├── services/
+│   │   ├── appointment_service.py
+│   │   ├── audit_service.py
+│   │   ├── barber_rate_guard.py
+│   │   └── __init__.py
+│   ├── auth.py
+│   ├── config.py
+│   ├── exceptions.py
+│   ├── logging_config.py
+│   ├── main.py
+│   ├── models.py
+│   ├── rate_limit.py
+│   ├── service_translations.py
+│   └── __init__.py
+├── scripts/
+│   └── backfill_encryption.py
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── favicon/
+│   │   ├── android-chrome-192x192.png
+│   │   ├── android-chrome-512x512.png
+│   │   ├── apple-touch-icon.png
+│   │   ├── favicon-16x16.png
+│   │   ├── favicon-32x32.png
+│   │   ├── favicon-48x48.png
+│   │   ├── favicon.ico
+│   │   └── validadot
+│   └── js/
+│       ├── admin.js
+│       ├── barber.js
+│       ├── config.js
+│       ├── i18n.js
+│       ├── public.js
+│       └── theme.js
+├── templates/
+│   ├── admin.html
+│   ├── barber.html
+│   ├── index.html
+│   └── privacy.html
+├── .env
+├── .env.example
+├── .gitignore
+├── README.md
+├── render.yaml
+├── requirements-lock.txt
+├── requirements.txt
+└── supabase_schema.sql
 ```
 ## 🔄 System Evolution — V1.0 vs V1.1
 
