@@ -1,109 +1,170 @@
-<h1 align="center">💈 Barbershop V1.1 — Remastered</h1>
+<div align="center">
 
-<p align="center">
-  <b>A production-ready full-stack barbershop management system</b><br/>
-  Built with clean architecture, real database, and modern deployment.
-</p>
+<img src=".github/assets/banner.svg" width="100%" alt="Barbershop V1.1 — Remastered"/>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Status-Live-2ECC71?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/API-FastAPI-009688?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/Deploy-Render%20%7C%20Vercel-000000?style=for-the-badge"/>
-</p>
+<br/>
 
----
+<img src="https://img.shields.io/badge/Status-Live-2ECC71?style=flat-square&labelColor=0B1320" alt="Status: Live"/>
+<img src="https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=FFFFFF&labelColor=0B1320" alt="FastAPI"/>
+<img src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=FFFFFF&labelColor=0B1320" alt="PostgreSQL"/>
+<img src="https://img.shields.io/badge/Deploy-Render_%7C_Vercel-E63946?style=flat-square&labelColor=0B1320" alt="Deploy: Render and Vercel"/>
+<img src="https://img.shields.io/badge/i18n-EN_%7C_PT--BR-1D5FD1?style=flat-square&labelColor=0B1320" alt="EN and PT-BR"/>
 
-## 🌐 Live Application
+<br/><br/>
 
-<p align="center">
-  🔗 <b>Frontend:</b> <a href="#">Access App</a> <br/>
-  ⚙️ <b>API:</b> <a href="#">View Docs</a>
-</p>
+**A production-ready full-stack barbershop management system.**<br/>
+Built with clean architecture, a real database, and modern deployment.
 
----
+<br/>
 
-## 🧠 Project Overview
+<a href="#live-application"><b>Live</b></a> &nbsp;·&nbsp;
+<a href="#overview"><b>Overview</b></a> &nbsp;·&nbsp;
+<a href="#features"><b>Features</b></a> &nbsp;·&nbsp;
+<a href="#architecture"><b>Architecture</b></a> &nbsp;·&nbsp;
+<a href="#security"><b>Security</b></a> &nbsp;·&nbsp;
+<a href="#tech-stack"><b>Stack</b></a> &nbsp;·&nbsp;
+<a href="#project-structure"><b>Structure</b></a> &nbsp;·&nbsp;
+<a href="#evolution"><b>Evolution</b></a> &nbsp;·&nbsp;
+<a href="#running-locally"><b>Run</b></a> &nbsp;·&nbsp;
+<a href="#roadmap"><b>Roadmap</b></a>
 
-This project is a **complete remaster** of a previous barbershop system, rebuilt from scratch with a focus on:
+</div>
 
-* scalability
-* maintainability
-* real-world architecture
-* production deployment
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
 
-Unlike the previous version, this system uses a **real cloud infrastructure**, replacing local storage with a robust and persistent database.
+## Live Application
 
----
+<div align="center">
 
-## ⚙️ Core Features
+| 🔗 Frontend | ⚙️ API |
+|:---:|:---:|
+| [**Access App**](#) | [**View Docs**](#) |
 
-### 👤 Authentication & Roles
+</div>
 
-* Admin, Barber, and Client access control
-* Protected routes via token validation
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
 
-### 📅 Scheduling System
+## Overview
 
-* Smart appointment creation
-* Conflict prevention (date & time validation)
-* Past-date blocking
+> [!IMPORTANT]
+> This project is a **complete remaster** of a previous barbershop system, rebuilt from scratch.
+> Unlike the previous version, it runs on **real cloud infrastructure**, replacing local storage with a robust and persistent database.
 
-### 🔄 Appointment Management
+<div align="center">
 
-* Rescheduling system
-* Cancellation flow
-* Unique confirmation code tracking
+| 📈 Scalability | 🧩 Maintainability | 🏛️ Real-world architecture | 🚀 Production deployment |
+|:---:|:---:|:---:|:---:|
+| Persistent cloud database | Modular FastAPI codebase | Routers · Services · Security | Render + Vercel |
 
-### 🌍 Internationalization
+</div>
 
-* Full support for **English** and **Portuguese (BR)**
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
 
-### 🎨 User Experience
+## Features
 
-* Light / Dark mode
-* Clean and modern UI
-* Responsive layout
+_The service menu:_
 
----
+| | Service | What you get |
+|:---:|---|---|
+| 👤 | **Authentication & Roles** | Admin, Barber, and Client access control · Protected routes via token validation |
+| 📅 | **Scheduling System** | Smart appointment creation · Conflict prevention (date & time validation) · Past-date blocking |
+| 🔄 | **Appointment Management** | Rescheduling system · Cancellation flow · Unique confirmation code tracking |
+| 🌍 | **Internationalization** | Full support for **English** and **Portuguese (BR)** |
+| 🎨 | **User Experience** | Light / Dark mode · Clean and modern UI · Responsive layout |
 
-## 🏗️ Architecture
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
 
-* Modular FastAPI routers
-* Separation of concerns (routes, services, validation)
-* Environment-based configuration
-* Clean and scalable project structure
+## Architecture
 
----
+**How a booking travels through the system:**
 
-## 🛠️ Tech Stack
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Client
+    participant F as Frontend
+    participant A as FastAPI
+    participant D as PostgreSQL
 
-<p>
-  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=FFD43B"/>
-  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=FFFFFF"/>
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=FFFFFF"/>
-  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000000"/>
-  <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=FFFFFF"/>
-  <img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=FFFFFF"/>
-</p>
+    C->>F: Pick service, date and time
+    F->>A: POST appointment
+    A->>A: Validate input (phone, dates) and rate limit
+    A->>D: Check conflicts for date and time
+    D-->>A: Slot status
+    alt Slot is free
+        A->>D: Save appointment
+        A-->>F: Confirmation code
+        F-->>C: Booking confirmed
+    else Conflict or past date
+        A-->>F: Structured error response
+        F-->>C: Choose another time
+    end
+```
 
----
+**How the layers connect:**
 
-## 🔐 Security
+```mermaid
+flowchart LR
+    UI["Frontend<br/>static/ · templates/"] --> MW["Middleware<br/>Request ID · HTTPS/CORS<br/>Cloudflare origin · Security"]
+    MW --> R["Routers<br/>public · barber · admin"]
+    R --> S["Services<br/>appointments · audit<br/>barber rate guard"]
+    R --> SEC["Security<br/>crypto · login guard<br/>MFA · password policy"]
+    S --> DB[("PostgreSQL<br/>Supabase")]
+```
 
-* Input validation (phone, dates, etc.)
-* Protected admin access
-* Rate limiting (anti-spam)
-* Sanitized user input
-* Error handling with structured responses
+**Layers:**
 
----
+| Layer | Location | Responsibility |
+|---|---|---|
+| Routers | `app/routers/` | Modular endpoints: `public`, `barber`, `admin` |
+| Services | `app/services/` | Business logic: appointments, audit, barber rate guard |
+| Security | `app/security/` | Crypto, login guard, MFA, password policy |
+| Middleware | `app/middleware/` | Request ID, HTTPS / CORS, Cloudflare origin, security layer |
+| Data | `app/models.py` · `supabase_schema.sql` | Models and PostgreSQL schema |
+| Config | `app/config.py` · `.env.example` | Environment-based configuration |
 
-## 📂 Project Structure
+Separation of concerns (routes, services, validation) keeps the structure clean and scalable.
+
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
+
+## Security
+
+| | Protection |
+|:---:|---|
+| ✅ | **Input validation** (phone, dates, etc.) |
+| 🛡️ | **Protected admin access** |
+| 🚦 | **Rate limiting** (anti-spam) |
+| 🧼 | **Sanitized user input** |
+| 🧯 | **Error handling** with structured responses |
+
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
+
+## Tech Stack
+
+<div align="center">
+
+<img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=FFD43B" alt="Python"/>
+<img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=FFFFFF" alt="FastAPI"/>
+<img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=FFFFFF" alt="PostgreSQL"/>
+<img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000000" alt="JavaScript"/>
+<img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=FFFFFF" alt="HTML5"/>
+<img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=FFFFFF" alt="CSS3"/>
+
+</div>
+
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
+
+## Project Structure
+
+<details>
+<summary><b>Expand file tree</b></summary>
 
 ```bash
 Barbershop-V.1.1/
 ├── .github/
+│   ├── assets/
+│   │   ├── banner.svg
+│   │   └── divider.svg
 │   └── workflows/
 │       └── supabase-backup.yml
 ├── app/
@@ -120,7 +181,7 @@ Barbershop-V.1.1/
 │   │   └── __init__.py
 │   ├── security/
 │   │   ├── crypto.py
-│   │   ├── init.py
+│   │   ├── __init__.py
 │   │   ├── login_guard.py
 │   │   ├── mfa.py
 │   │   └── password_policy.py
@@ -164,7 +225,6 @@ Barbershop-V.1.1/
 │   ├── barber.html
 │   ├── index.html
 │   └── privacy.html
-├── .env
 ├── .env.example
 ├── .gitignore
 ├── README.md
@@ -173,145 +233,63 @@ Barbershop-V.1.1/
 ├── requirements.txt
 └── supabase_schema.sql
 ```
-## 🔄 System Evolution — V1.0 vs V1.1
 
-<table width="100%">
+</details>
 
-<tr>
-<th width="50%">💈 V1.0 — Initial</th>
-<th width="50%">🚀 V1.1 — Remastered</th>
-</tr>
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
 
-<tr>
-<td>
-<b>☁️ Infrastructure</b><br>
-• Localhost only<br>
-• No deployment
-</td>
-<td>
-<b>☁️ Infrastructure</b><br>
-• Render + Vercel<br>
-• Public & global
-</td>
-</tr>
+## Evolution
 
-<tr>
-<td>
-<b>💾 Data Storage</b><br>
-• JSON files<br>
-• No persistence guarantee
-</td>
-<td>
-<b>🗄️ Data Storage</b><br>
-• PostgreSQL (Supabase)<br>
-• Persistent & reliable
-</td>
-</tr>
+_V1.0 → V1.1: what changed in the remaster._
 
-<tr>
-<td>
-<b>🔐 Authentication</b><br>
-• No login system<br>
-• No roles
-</td>
-<td>
-<b>🔐 Authentication</b><br>
-• Admin / Barber / Client<br>
-• Protected routes
-</td>
-</tr>
+| Area | 💈 V1.0 — Initial | 🚀 V1.1 — Remastered |
+|---|---|---|
+| ☁️ **Infrastructure** | Localhost only · No deployment | Render + Vercel · Public & global |
+| 🗄️ **Data Storage** | JSON files · No persistence guarantee | PostgreSQL (Supabase) · Persistent & reliable |
+| 🔐 **Authentication** | No login system · No roles | Admin / Barber / Client · Protected routes |
+| 🧱 **Architecture** | Monolithic structure · Hard to maintain | Modular FastAPI · Scalable design |
+| ⚙️ **Backend** | Basic logic · Minimal validation | Strong validation · Logging & error handling |
+| 🎨 **Frontend** | Simple UI · No theme system | Modern UI · Light / Dark mode |
+| 📅 **Scheduling** | Basic booking · No conflict validation | Conflict prevention · Rescheduling system |
+| 🌍 **Internationalization** | Not supported | EN / PT-BR support |
 
-<tr>
-<td>
-<b>🏗️ Architecture</b><br>
-• Monolithic structure<br>
-• Hard to maintain
-</td>
-<td>
-<b>🧱 Architecture</b><br>
-• Modular FastAPI<br>
-• Scalable design
-</td>
-</tr>
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
 
-<tr>
-<td>
-<b>⚙️ Backend</b><br>
-• Basic logic<br>
-• Minimal validation
-</td>
-<td>
-<b>⚙️ Backend</b><br>
-• Strong validation<br>
-• Logging & error handling
-</td>
-</tr>
-
-<tr>
-<td>
-<b>🎨 Frontend</b><br>
-• Simple UI<br>
-• No theme system
-</td>
-<td>
-<b>🎨 Frontend</b><br>
-• Modern UI<br>
-• Light / Dark mode
-</td>
-</tr>
-
-<tr>
-<td>
-<b>📅 Scheduling</b><br>
-• Basic booking<br>
-• No conflict validation
-</td>
-<td>
-<b>📅 Scheduling</b><br>
-• Conflict prevention<br>
-• Rescheduling system
-</td>
-</tr>
-
-<tr>
-<td>
-<b>🌍 Internationalization</b><br>
-• Not supported
-</td>
-<td>
-<b>🌍 Internationalization</b><br>
-• EN / PT-BR support
-</td>
-</tr>
-
-</table>
-
-
-
-
----
-
-## ⚡ Running Locally
+## Running Locally
 
 ```bash
 git clone https://github.com/felipe2008pg1/Barbershop-V.1.1
-cd Barbershop-V.1.0
+cd Barbershop-V.1.1
+
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 pip install -r requirements.txt
-uvicorn main:app --reload
+cp .env.example .env             # then fill in your own values
+
+uvicorn app.main:app --reload
 ```
 
----
+> [!NOTE]
+> Never commit `.env`. Use `requirements-lock.txt` for reproducible installs.
 
-## 🚀 Future Version (V2)
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
 
-* JWT authentication
-* Payment integration
-* Admin dashboard with analytics
-* Multi-location support
+## Roadmap
 
----
+**Future version (V2)**
 
-## 👨‍💻 Author
-<b>Felipe Gonzalez</b>
-| Full Stack Python Developer
+- [ ] 🔑 JWT authentication
+- [ ] 💳 Payment integration
+- [ ] 📊 Admin dashboard with analytics
+- [ ] 📍 Multi-location support
+
+<img src=".github/assets/divider.svg" width="100%" height="10" alt=""/>
+
+<div align="center">
+
+**Felipe Gonzalez** &nbsp;·&nbsp; Full Stack Python Developer
+
+<sub>💈 Clean cuts, clean code.</sub>
+
+</div>
